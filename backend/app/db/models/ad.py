@@ -1,4 +1,5 @@
 """광고 시안 (이미지/텍스트=베이스라인, 영상/URL=P2)."""
+
 import uuid
 
 from sqlalchemy import Enum as SAEnum
@@ -6,15 +7,18 @@ from sqlalchemy import Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base, TimestampMixin, UUIDMixin
 from app.db.enums import AdInputType, AdStatus
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Ad(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "ads"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False

@@ -1,14 +1,14 @@
 """Alembic env (async). 런타임 URL(asyncpg)을 그대로 사용. 모든 모델은 app.db.models에서 import."""
+
 import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from app.db.models import Base  # noqa: F401  (모든 테이블 등록)
+from app.db.session import asyncpg_connect_args
+from app.shared.config import settings
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
-
-from app.db.models import Base  # noqa: F401  (모든 테이블 등록)
-from app.shared.config import settings
-from app.db.session import asyncpg_connect_args
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

@@ -1,10 +1,8 @@
 """Pydantic 계약 → contracts/*.schema.json 덤프. `uv run python -m scripts.export_contracts`"""
+
 import json
-from pathlib import Path
-
 from enum import Enum
-
-from pydantic import BaseModel
+from pathlib import Path
 
 from app.contracts.chat_api import (
     ChatMessageOut,
@@ -22,6 +20,7 @@ from app.contracts.simulation_pipeline import SimState
 from app.contracts.sse import SimulationEvent
 from app.domains.auth.dto import LoginRequest, TokenResponse, UserOut
 from app.shared.envelope import ApiResponse, ErrorCode
+from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parents[2] / "contracts"
 

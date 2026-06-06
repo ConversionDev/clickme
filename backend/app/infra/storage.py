@@ -1,4 +1,5 @@
 """Storage 포트 — local(개발) / s3(프로덕션) 스왑."""
+
 from dataclasses import dataclass
 from typing import Protocol
 

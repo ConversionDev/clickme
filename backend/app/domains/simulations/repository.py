@@ -1,4 +1,5 @@
 """simulations 영속 계층."""
+
 import uuid
 
 from sqlalchemy import select
@@ -27,9 +28,7 @@ class SimulationRepository:
         return res.scalar_one_or_none() is not None
 
     async def get_ad_for_project(self, ad_id: uuid.UUID, project_id: uuid.UUID) -> Ad | None:
-        res = await self.db.execute(
-            select(Ad).where(Ad.id == ad_id, Ad.project_id == project_id)
-        )
+        res = await self.db.execute(select(Ad).where(Ad.id == ad_id, Ad.project_id == project_id))
         return res.scalar_one_or_none()
 
     async def create_simulation(self, sim: Simulation) -> Simulation:

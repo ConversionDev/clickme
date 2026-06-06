@@ -1,4 +1,5 @@
 """에이전트 레지스트리 — service는 여기로만 AI 호출."""
+
 from app.ai.kernel.agent import Agent
 
 

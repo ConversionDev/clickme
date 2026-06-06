@@ -1,5 +1,6 @@
 """인메모리 SSE pub/sub 버스. ⚠️ 베이스라인 단일 워커 전용.
 멀티워커 확장 시 Postgres LISTEN/NOTIFY로 교체 (llms.txt 참고)."""
+
 import asyncio
 from collections import defaultdict
 

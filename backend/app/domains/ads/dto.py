@@ -1,10 +1,10 @@
 """ads API 스키마."""
+
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
 from app.db.enums import AdInputType, AdStatus
+from pydantic import BaseModel, Field
 
 
 class CreateTextAdRequest(BaseModel):

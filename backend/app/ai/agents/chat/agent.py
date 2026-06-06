@@ -1,4 +1,5 @@
 """채팅 에이전트 — mock 토큰 스트리밍 + 시뮬 컨텍스트 참조."""
+
 import asyncio
 from collections.abc import AsyncIterator
 
@@ -33,5 +34,6 @@ class ChatAgent(Agent):
         return (
             f"안녕하세요! Click Me 어시스턴트입니다.\n\n"
             f"질문을 이해했습니다: {user_msg}\n\n"
-            "광고 시뮬레이션을 실행하거나 프로젝트 리포트를 참조하면 더 구체적인 답변을 드릴 수 있습니다."
+            "광고 시뮬레이션을 실행하거나 프로젝트 리포트를 참조하면 "
+            "더 구체적인 답변을 드릴 수 있습니다."
         )

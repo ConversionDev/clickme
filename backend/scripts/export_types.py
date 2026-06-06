@@ -2,13 +2,12 @@
 
 `uv run python -m scripts.export_types`
 """
+
 from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
 from typing import Any, get_args, get_origin
-
-from pydantic import BaseModel
 
 from app.contracts.chat_api import (
     ChatMessageOut,
@@ -22,8 +21,25 @@ from app.contracts.simulation_api import (
     SimulationDetailOut,
     SimulationSummaryOut,
 )
-from app.contracts.simulation_pipeline import PersonaConfig, Prediction, PredictionKpi, Recommendation
+from app.contracts.simulation_pipeline import (
+    PersonaConfig,
+    Prediction,
+    PredictionKpi,
+    Recommendation,
+)
 from app.contracts.sse import SimulationEvent, SimulationEventType
+from app.db.enums import (
+    AdInputType,
+    AdStatus,
+    CampaignObjective,
+    ChatRole,
+    PlanType,
+    ProjectMemberRole,
+    ProjectStatus,
+    SimulationStatus,
+    SimulationType,
+    UserRole,
+)
 from app.domains.admin.dto import (
     AdminChatSessionOut,
     AdminUsageOut,
@@ -42,19 +58,8 @@ from app.domains.users.dto import (
     UserProfileOut,
     UserSettingsOut,
 )
-from app.db.enums import (
-    AdInputType,
-    AdStatus,
-    CampaignObjective,
-    ChatRole,
-    PlanType,
-    ProjectMemberRole,
-    ProjectStatus,
-    SimulationStatus,
-    SimulationType,
-    UserRole,
-)
 from app.shared.envelope import ApiResponse, ErrorCode, ErrorDetail
+from pydantic import BaseModel
 
 OUT = Path(__file__).resolve().parents[2] / "frontend" / "src" / "api" / "types.gen.ts"
 
@@ -173,7 +178,14 @@ def _interface(model: type[BaseModel]) -> str:
 
 
 def _json_type(t: str) -> str:
-    return {"string": "string", "integer": "number", "number": "number", "boolean": "boolean", "object": "Record<string, unknown>", "array": "unknown[]"}.get(t, "unknown")
+    return {
+        "string": "string",
+        "integer": "number",
+        "number": "number",
+        "boolean": "boolean",
+        "object": "Record<string, unknown>",
+        "array": "unknown[]",
+    }.get(t, "unknown")
 
 
 def _enum(e: type[Enum]) -> str:
@@ -195,7 +207,11 @@ def main() -> None:
         "",
     ]
     enums = [m for m in MODELS if isinstance(m, type) and issubclass(m, Enum)]
-    bases = [m for m in MODELS if isinstance(m, type) and issubclass(m, BaseModel) and m is not ApiResponse]
+    bases = [
+        m
+        for m in MODELS
+        if isinstance(m, type) and issubclass(m, BaseModel) and m is not ApiResponse
+    ]
     # 의존 타입(ReportOut 등)이 먼저 나오도록 정렬
     base_names = {m.__name__ for m in bases}
     order: dict[str, int] = {}

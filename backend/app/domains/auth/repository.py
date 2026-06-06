@@ -1,4 +1,5 @@
 """auth 영속 계층 (SQLAlchemy Async)."""
+
 import uuid
 from datetime import datetime
 

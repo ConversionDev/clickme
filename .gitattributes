@@ -1,0 +1,18 @@
+# 저장소 표준 = LF (CI=Linux 정합 · Windows 편집기도 LF 정상 처리)
+* text=auto eol=lf
+
+# Windows 전용 스크립트만 CRLF 유지
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리 — 변환 금지
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary

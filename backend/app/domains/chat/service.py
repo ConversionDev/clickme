@@ -1,8 +1,7 @@
 """채팅 유스케이스 — 세션/메시지 영속 + mock 에이전트 스트리밍."""
+
 import uuid
 from collections.abc import AsyncIterator
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.agents.chat.agent import ChatAgent
 from app.ai.kernel.registry import registry
@@ -12,12 +11,13 @@ from app.contracts.chat_api import (
     CreateChatSessionRequest,
     SendChatMessageRequest,
 )
-from app.domains.chat.repository import ChatRepository
-from app.db.models.chat import ChatMessage, ChatSession
 from app.db.enums import ChatRole
+from app.db.models.chat import ChatMessage, ChatSession
+from app.domains.chat.repository import ChatRepository
+from app.shared.envelope import ErrorCode
 from app.shared.exceptions import AppException
 from app.shared.project_access import assert_project_member
-from app.shared.envelope import ErrorCode
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _ensure_chat_agent() -> ChatAgent:
@@ -54,9 +54,7 @@ class ChatService:
             created_at=m.created_at,
         )
 
-    async def create_session(
-        self, user_id: str, body: CreateChatSessionRequest
-    ) -> ChatSessionOut:
+    async def create_session(self, user_id: str, body: CreateChatSessionRequest) -> ChatSessionOut:
         if body.project_id:
             await assert_project_member(self.db, body.project_id, uuid.UUID(user_id))
         session = ChatSession(

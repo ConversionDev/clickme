@@ -1,4 +1,5 @@
 """감사 로그 (관리자 추적). metadata→meta 매핑."""
+
 import uuid
 
 from sqlalchemy import ForeignKey, String

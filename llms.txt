@@ -462,8 +462,9 @@ GET  /simulations/{id}/events   → StreamingResponse(text/event-stream), 이벤
 - `env_file required: false` → `.env` 없어도 부팅.
 
 ### backend 의존성 (`backend/pyproject.toml`, uv)
-fastapi · uvicorn[standard] · pydantic · pydantic-settings · email-validator · sqlalchemy[asyncio] ·
-asyncpg · pgvector · alembic · python-jose[cryptography] · **bcrypt**(passlib X — 4.x 비호환) · python-multipart.
+**web**: fastapi · uvicorn[standard] · pydantic · pydantic-settings · email-validator · python-multipart.
+**db**: sqlalchemy[asyncio] · asyncpg · pgvector · alembic. **auth**: python-jose[cryptography] · **bcrypt**(passlib X — 4.x 비호환).
+**AI**: langchain · langchain-core · langgraph · langsmith · langchain-{openai,anthropic,google-genai,ollama}.
 `[tool.uv] package=false`(앱 → 루트 빌드 생략). dev: ruff · pytest · pytest-asyncio · httpx.
 계약/타입 생성은 외부 도구 없이 **`scripts/export_contracts.py`(→JSON)·`scripts/export_types.py`(→types.gen.ts)`** 자체 구현.
 

@@ -1,5 +1,6 @@
 """비밀번호 해시(bcrypt) + JWT 발급/검증. 클레임 = {sub, role, org_id, type, iat, exp}."""
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import bcrypt
@@ -25,7 +26,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def _create_token(sub: UUID, role: str, org_id: UUID, expires: timedelta, token_type: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(sub),
         "role": role,

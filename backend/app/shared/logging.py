@@ -1,4 +1,5 @@
 """구조화 로그. ⚠️ 기밀(예산·크리에이티브·시크릿) 평문 로그 금지 — 참조(id/hash)만."""
+
 import logging
 import sys
 

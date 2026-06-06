@@ -1,4 +1,5 @@
 """reports API 스키마."""
+
 from datetime import datetime
 from uuid import UUID
 

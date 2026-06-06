@@ -1,22 +1,25 @@
 """AI 생성 광고 (보관함, P2)."""
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
 from app.db.enums import AdStatus
+from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
 
 
 class GeneratedAd(Base, UUIDMixin, CreatedAtMixin):
     __tablename__ = "generated_ads"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False

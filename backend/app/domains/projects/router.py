@@ -1,15 +1,15 @@
 """projects 라우터."""
+
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.session import get_db
 from app.domains.projects.dto import CreateProjectRequest, ProjectOut, UpdateProjectRequest
 from app.domains.projects.service import ProjectService
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.envelope import ApiResponse, ok
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -30,9 +30,7 @@ async def create_project(
 
 
 @router.get("/{project_id}", response_model=ApiResponse[ProjectOut])
-async def get_project(
-    project_id: UUID, user: UserDep, db: DbDep
-) -> ApiResponse[ProjectOut]:
+async def get_project(project_id: UUID, user: UserDep, db: DbDep) -> ApiResponse[ProjectOut]:
     return ok(await ProjectService(db).get(project_id, user.id))
 
 
@@ -44,8 +42,6 @@ async def update_project(
 
 
 @router.delete("/{project_id}", response_model=ApiResponse[None])
-async def delete_project(
-    project_id: UUID, user: UserDep, db: DbDep
-) -> ApiResponse[None]:
+async def delete_project(project_id: UUID, user: UserDep, db: DbDep) -> ApiResponse[None]:
     await ProjectService(db).delete(project_id, user.id)
     return ok(message="프로젝트 삭제 완료")

@@ -1,4 +1,5 @@
 """파이프라인 StepTrace 기록 (도메인 무관)."""
+
 import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar

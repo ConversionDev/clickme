@@ -1,4 +1,5 @@
 """공통 응답 봉투 + 에러코드 (contracts SSOT의 뼈대). 모든 API가 이 형태로 응답."""
+
 from enum import Enum
 from typing import Generic, TypeVar
 

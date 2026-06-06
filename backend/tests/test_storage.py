@@ -1,6 +1,6 @@
 """로컬 Storage 어댑터 테스트."""
-import pytest
 
+import pytest
 from app.infra.local_storage import LocalStorageBackend
 from app.shared.config import settings
 

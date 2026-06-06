@@ -27,11 +27,12 @@
 
 ## 기술 스택
 
-- **Frontend**: Next.js (React) · Zustand · TanStack Query
+- **Frontend**: Next.js 15 (React 19) · Zustand · TanStack Query · Tailwind · **Recharts**(차트)
 - **Backend**: FastAPI · Uvicorn · Pydantic · SQLAlchemy(Async) · Alembic
-- **AI**: LangChain · LangGraph · LangSmith · Multi-LLM(OpenAI·Claude·Gemini)
+- **AI**: LangChain · LangGraph(P2 승격) · LangSmith(트레이싱) · Multi-LLM(OpenAI·Claude·Gemini·Ollama) — `uv sync`로 일괄 설치
 - **Data**: NeonDB(PostgreSQL) · pgvector · AWS S3
 - **Infra**: Docker · uv · GitHub Actions · (EC2 + nginx)
+- **품질**: Ruff(lint+format, 자동수정) · pytest · tsc(typecheck)
 - 선택: AWS SQS · Cloudflare
 
 ---
@@ -50,7 +51,7 @@ flowchart TB
         NG["nginx<br/>TLS · 프록시 · SSE"]
         subgraph FASTAPI["FastAPI · 단일 Python"]
             DOM["domains/<br/>router → service → repository"]
-            KER["ai/kernel<br/>오케스트레이터 · registry · llm라우터 · tracing"]
+            KER["ai/kernel<br/>오케스트레이터 · registry · modality_router · tracing"]
             AGT["ai/agents<br/>analyzer · simulator · chat · cost"]
         end
     end
@@ -161,8 +162,8 @@ uv sync                                   # 의존성 (팀원은 이거면 끝)
 cp .env.example .env                       # DATABASE_URL(Neon) · JWT_SECRET 등 채우기
 uv run alembic upgrade head                # 마이그레이션 (app/db/alembic)
 uv run python -m scripts.seed              # 샘플 seed (admin@clickme.io / ChangeMe123!)
-uv run python -m uvicorn app.main:app --reload   # http://localhost:8000/api/health
-# (Windows AppLocker 등으로 `uvicorn` exe가 차단되면 `python -m` 필수)
+uv run python main.py                      # http://localhost:8000/api/health (reload)
+# 포트 바꾸려면: APP_PORT=8080 uv run python main.py
 
 # 프론트 (별도 담당자)
 cd frontend
@@ -173,6 +174,11 @@ pnpm dev                                   # http://localhost:3000  (/api → :8
 cd backend
 uv run python -m scripts.export_contracts  # → contracts/*.schema.json
 uv run python -m scripts.export_types      # → frontend/src/api/types.gen.ts
+
+# 린트/포맷 (커밋 전 — CI가 동일하게 검사)
+uv run ruff check --fix .                  # 린트 + 자동수정 (import정렬·pyupgrade 등)
+uv run ruff format .                        # 코드 포맷
+cd ../frontend && pnpm typecheck            # 프론트 타입체크 (tsc --noEmit)
 
 # (선택) prod-like 통합 확인
 docker compose up --build                  # nginx + backend
@@ -213,16 +219,21 @@ docker compose up --build                  # nginx + backend
 
 ---
 
-## 배포 (개요)
+## 배포
 
+**현재 구현됨 (GitHub Actions)**
 ```
-FE   app.* → Vercel (Next.js · Git 연동 자동배포)
-BE   api.* → EC2 + docker-compose(nginx + uvicorn) · IAM 롤로 S3 접근
-DB   NeonDB · S3 (외부)
-CI   PR/main → ruff · pytest · contracts drift · FE build
-CD   main → buildx → GHCR push → (CD_ENABLED 시) EC2 배포
+CI  ci.yml          PR + push(main) → ruff·alembic·seed·pytest·docker build / contracts drift / FE typecheck·build
+CD  cd-backend.yml  push(main, backend/**) → buildx → GHCR push (ghcr.io/<owner>/clickme-backend:{sha,latest})
 ```
-> CD 활성화: repo Variable `CD_ENABLED=true` + Secrets(`DEPLOY_HOST·DEPLOY_USER·DEPLOY_SSH_KEY`). 미설정 시 GHCR push까지만.
+
+**목표 토폴로지 (아직 미구축)**
+```
+FE   app.* → Vercel (Next.js)            ⏳ 연동 전 — 현재는 CI build 검증만
+BE   api.* → EC2 + docker-compose(nginx) ⏳ CD_ENABLED 시 EC2 SSH 배포 활성화
+DB   NeonDB · S3 (외부)                   ✅ 사용 중
+```
+> EC2 배포 활성화: repo Variable `CD_ENABLED=true` + Secrets(`DEPLOY_HOST·DEPLOY_USER·DEPLOY_SSH_KEY`). 미설정 시 GHCR push까지만.
 
 ---
 

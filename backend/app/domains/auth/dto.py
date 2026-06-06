@@ -1,4 +1,5 @@
 """auth I/O 계약 (Pydantic). contracts SSOT — FE도 이 모양으로 타입 생성."""
+
 from pydantic import BaseModel, EmailStr
 
 from app.db.enums import UserRole

@@ -1,4 +1,5 @@
 """전역 설정 (pydantic-settings). 환경변수에서 읽고, 미설정 시 안전한 기본값으로 부팅."""
+
 from functools import lru_cache
 from pathlib import Path
 

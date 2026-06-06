@@ -1,10 +1,10 @@
 """admin API 스키마."""
+
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
-
 from app.db.enums import UserRole
+from pydantic import BaseModel, EmailStr, Field
 
 
 class AdminUserOut(BaseModel):

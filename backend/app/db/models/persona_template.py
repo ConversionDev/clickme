@@ -1,4 +1,8 @@
-"""페르소나 템플릿 (재사용). embedding=RAG용(pgvector, P2). ivfflat 인덱스는 마이그레이션에서 별도 추가."""
+"""페르소나 템플릿 (재사용).
+
+embedding=RAG용(pgvector, P2). ivfflat 인덱스는 마이그레이션에서 별도 추가.
+"""
+
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import JSONB

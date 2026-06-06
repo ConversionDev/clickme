@@ -1,4 +1,5 @@
 """S3 저장 — 프로덕션(EC2 IAM 롤). AWS 미설정 시 명확한 오류."""
+
 from app.infra.storage import StoredObject
 from app.shared.config import settings
 
@@ -14,9 +15,7 @@ class S3StorageBackend:
         try:
             import boto3
         except ImportError as exc:
-            raise RuntimeError(
-                "S3 백엔드에 boto3가 필요합니다: uv add boto3"
-            ) from exc
+            raise RuntimeError("S3 백엔드에 boto3가 필요합니다: uv add boto3") from exc
 
         client = boto3.client("s3", region_name=settings.aws_region or None)
         client.put_object(

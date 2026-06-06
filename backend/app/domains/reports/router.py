@@ -1,15 +1,15 @@
 """reports 라우터."""
+
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.session import get_db
 from app.domains.reports.dto import DashboardOut, ReportOut
 from app.domains.reports.service import ReportService
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.envelope import ApiResponse, ok
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api", tags=["reports"])
 

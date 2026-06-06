@@ -1,6 +1,7 @@
 """광고 업로드 검증 — 베이스라인 10MB · image/jpeg|png|webp."""
-from app.shared.exceptions import AppException
+
 from app.shared.envelope import ErrorCode
+from app.shared.exceptions import AppException
 
 MAX_AD_IMAGE_BYTES = 10 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {

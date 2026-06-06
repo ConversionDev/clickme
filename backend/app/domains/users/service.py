@@ -1,20 +1,20 @@
 """users/org/settings 유스케이스."""
+
 import uuid
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.models.organization import Organization
+from app.db.models.user import User
+from app.db.models.user_settings import UserSettings
 from app.domains.users.dto import (
     OrganizationOut,
     UpdateUserSettingsRequest,
     UserProfileOut,
     UserSettingsOut,
 )
-from app.db.models.organization import Organization
-from app.db.models.user import User
-from app.db.models.user_settings import UserSettings
-from app.shared.exceptions import AppException
 from app.shared.envelope import ErrorCode
+from app.shared.exceptions import AppException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UserService:

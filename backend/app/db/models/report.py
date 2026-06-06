@@ -1,4 +1,5 @@
 """리포트 + Calibration 데이터(P2, 예측↔실측 보정)."""
+
 import uuid
 
 from sqlalchemy import Boolean, Float, ForeignKey, String, Text
@@ -7,7 +8,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
 
-_DISCLAIMER = "본 결과는 AI 시뮬레이션 기반 예측입니다. 실제 광고 성과와 ±20~30% 오차가 있을 수 있습니다."
+_DISCLAIMER = (
+    "본 결과는 AI 시뮬레이션 기반 예측입니다. 실제 광고 성과와 ±20~30% 오차가 있을 수 있습니다."
+)
 
 
 class Report(Base, UUIDMixin, CreatedAtMixin):

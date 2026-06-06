@@ -1,17 +1,17 @@
 """ads 라우터 — multipart(베이스라인) + JSON 텍스트(호환)."""
+
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.session import get_db
 from app.domains.ads.dto import AdOut, CreateTextAdRequest
 from app.domains.ads.service import AdService
 from app.domains.ads.validation import MAX_AD_IMAGE_BYTES
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
-from app.shared.exceptions import AppException
 from app.shared.envelope import ApiResponse, ErrorCode, ok
+from app.shared.exceptions import AppException
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api", tags=["ads"])
 
@@ -38,9 +38,7 @@ async def _read_upload_limited(file: UploadFile, limit: int = MAX_AD_IMAGE_BYTES
 
 
 @router.get("/projects/{project_id}/ads", response_model=ApiResponse[list[AdOut]])
-async def list_ads(
-    project_id: UUID, user: UserDep, db: DbDep
-) -> ApiResponse[list[AdOut]]:
+async def list_ads(project_id: UUID, user: UserDep, db: DbDep) -> ApiResponse[list[AdOut]]:
     return ok(await AdService(db).list_for_project(project_id, user.id))
 
 

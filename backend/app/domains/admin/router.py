@@ -1,10 +1,9 @@
 """admin 라우터 — require_role(admin)."""
+
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.session import get_db
 from app.domains.admin.dto import (
     AdminChatSessionOut,
     AdminUsageOut,
@@ -13,9 +12,10 @@ from app.domains.admin.dto import (
     PatchAdminUserRequest,
 )
 from app.domains.admin.service import AdminService
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, require_role
 from app.shared.envelope import ApiResponse, ok
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

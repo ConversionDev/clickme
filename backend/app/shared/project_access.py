@@ -1,12 +1,13 @@
 """프로젝트 멤버십 검증 — 도메인 공통."""
+
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.project import Project, ProjectMember
-from app.shared.exceptions import AppException
 from app.shared.envelope import ErrorCode
+from app.shared.exceptions import AppException
 
 
 async def get_project_or_404(db: AsyncSession, project_id: uuid.UUID) -> Project:
@@ -32,7 +33,5 @@ async def assert_project_member(
 
 
 async def list_member_project_ids(db: AsyncSession, user_id: uuid.UUID) -> list[uuid.UUID]:
-    res = await db.execute(
-        select(ProjectMember.project_id).where(ProjectMember.user_id == user_id)
-    )
+    res = await db.execute(select(ProjectMember.project_id).where(ProjectMember.user_id == user_id))
     return list(res.scalars().all())

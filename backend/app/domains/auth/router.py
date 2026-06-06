@@ -1,9 +1,11 @@
 """auth 라우터 (얇게) — 검증·DI만, 로직은 service."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import get_db
 from app.domains.auth.dto import (
     ChangePasswordRequest,
     LoginRequest,
@@ -12,7 +14,6 @@ from app.domains.auth.dto import (
     TokenResponse,
 )
 from app.domains.auth.service import AuthService
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.envelope import ApiResponse, ok
 

@@ -1,16 +1,16 @@
 """reports 유스케이스 — 조회·대시보드."""
+
 import uuid
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domains.reports.dto import DashboardOut, ReportOut
 from app.db.enums import SimulationStatus
 from app.db.models.report import Report
 from app.db.models.simulation import Simulation
+from app.domains.reports.dto import DashboardOut, ReportOut
+from app.shared.envelope import ErrorCode
 from app.shared.exceptions import AppException
 from app.shared.project_access import assert_project_member, list_member_project_ids
-from app.shared.envelope import ErrorCode
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ReportService:
@@ -63,7 +63,9 @@ class ReportService:
                 recent_reports=[],
             )
         sim_count = await self.db.scalar(
-            select(func.count()).select_from(Simulation).where(Simulation.project_id.in_(project_ids))
+            select(func.count())
+            .select_from(Simulation)
+            .where(Simulation.project_id.in_(project_ids))
         )
         completed = await self.db.scalar(
             select(func.count())

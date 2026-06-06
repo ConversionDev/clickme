@@ -1,4 +1,5 @@
 """Refresh Token — 해시로 저장, 회전(rotate) 시 revoked 처리."""
+
 import uuid
 from datetime import datetime
 

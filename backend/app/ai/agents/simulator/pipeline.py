@@ -1,4 +1,5 @@
 """시뮬레이터 파이프라인 — plain async fan-out/fan-in (mock LLM)."""
+
 import asyncio
 import statistics
 from collections.abc import Awaitable, Callable
@@ -104,7 +105,9 @@ async def run_pipeline(
                     attributes={
                         "age": 22 + (i % 5) * 6,
                         "gender": "female" if i % 2 == 0 else "male",
-                        "location": (persona_config.regions or ["서울"])[i % max(1, len(persona_config.regions or ["서울"]))],
+                        "location": (persona_config.regions or ["서울"])[
+                            i % max(1, len(persona_config.regions or ["서울"]))
+                        ],
                     },
                 )
             )

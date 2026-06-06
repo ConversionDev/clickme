@@ -1,4 +1,5 @@
 """베이스라인 E2E — login → projects → ads → sim → report → chat (Neon+seed 필요)."""
+
 import asyncio
 
 import pytest
@@ -111,9 +112,7 @@ async def test_baseline_e2e_flow(client: AsyncClient, user_token: str):
 
 
 @pytest.mark.asyncio
-async def test_admin_and_billing(
-    client: AsyncClient, admin_token: str, regular_user_token: str
-):
+async def test_admin_and_billing(client: AsyncClient, admin_token: str, regular_user_token: str):
     ah = _auth(admin_token)
     uh = _auth(regular_user_token)
 

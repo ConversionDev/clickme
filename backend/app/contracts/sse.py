@@ -1,4 +1,5 @@
 """SSE 이벤트 계약 — progress · milestone · completed · error."""
+
 from enum import Enum
 from typing import Any
 from uuid import UUID

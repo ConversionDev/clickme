@@ -1,11 +1,8 @@
 """chat 라우터 — 세션·메시지·SSE 스트리밍."""
+
 import json
 from typing import Annotated
 from uuid import UUID
-
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.chat_api import (
     ChatMessageOut,
@@ -13,10 +10,13 @@ from app.contracts.chat_api import (
     CreateChatSessionRequest,
     SendChatMessageRequest,
 )
-from app.domains.chat.service import ChatService
 from app.db.session import get_db
+from app.domains.chat.service import ChatService
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.envelope import ApiResponse, ok
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

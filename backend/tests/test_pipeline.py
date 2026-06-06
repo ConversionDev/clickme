@@ -1,8 +1,8 @@
 """mock 파이프라인 단위 테스트."""
+
 import uuid
 
 import pytest
-
 from app.ai.agents.analyzer.agent import AnalyzerAgent
 from app.ai.agents.simulator.pipeline import run_pipeline
 from app.ai.kernel.registry import registry

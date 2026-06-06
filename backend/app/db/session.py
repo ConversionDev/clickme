@@ -1,4 +1,5 @@
 """Async SQLAlchemy 엔진/세션. 의존성 get_db로 도메인에 주입."""
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine

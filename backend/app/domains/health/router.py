@@ -1,4 +1,5 @@
 """헬스체크 — nginx→backend 관통 확인용."""
+
 from fastapi import APIRouter
 
 from app.shared.envelope import ApiResponse, ok

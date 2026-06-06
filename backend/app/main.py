@@ -1,4 +1,5 @@
 """Click Me 백엔드 진입점 — 라우터 등록 · 예외 핸들러 · CORS."""
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 

@@ -1,5 +1,6 @@
 """PG ENUM 타입 (10종). 04_DB설계.sql과 일치.
 ⚠️ 지표성 enum(segment 등)은 팀 다같이 논의 후 확정 — 단정 금지 (llms.txt 참고)."""
+
 import enum
 
 

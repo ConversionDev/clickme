@@ -1,11 +1,12 @@
 """앱 예외 + FastAPI 핸들러 → 항상 응답 봉투({success,error}) 형태로 반환."""
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.shared.logging import logger
 from app.shared.envelope import ApiResponse, ErrorCode, ErrorDetail
+from app.shared.logging import logger
 
 
 class AppException(Exception):

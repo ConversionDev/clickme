@@ -1,9 +1,9 @@
 """pytest 공통 fixture."""
-import pytest
-from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+import pytest
 from app.db.session import engine
+from app.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture(autouse=True)

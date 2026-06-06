@@ -1,15 +1,15 @@
 """사용자 — 관리자가 직접 생성. 소셜 로그인/자가 가입 없음."""
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base, TimestampMixin, UUIDMixin
 from app.db.enums import UserRole
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class User(Base, UUIDMixin, TimestampMixin):

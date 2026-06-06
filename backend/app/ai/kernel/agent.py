@@ -1,4 +1,5 @@
 """에이전트 공통 인터페이스."""
+
 from abc import ABC, abstractmethod
 from typing import Any
 

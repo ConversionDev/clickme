@@ -1,4 +1,5 @@
 """모든 ORM 모델을 한 곳에서 import → Alembic이 전부 인식 (autogenerate/메타데이터)."""
+
 from app.db.models.ad import Ad
 from app.db.models.audit_log import AuditLog
 from app.db.models.base import Base

@@ -1,10 +1,9 @@
 """users/org/settings 라우터."""
+
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.db.session import get_db
 from app.domains.users.dto import (
     OrganizationOut,
     UpdateUserSettingsRequest,
@@ -12,9 +11,10 @@ from app.domains.users.dto import (
     UserSettingsOut,
 )
 from app.domains.users.service import UserService
-from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.envelope import ApiResponse, ok
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -40,7 +40,5 @@ async def update_settings(
 
 
 @router.get("/organizations/{org_id}", response_model=ApiResponse[OrganizationOut])
-async def get_organization(
-    org_id: UUID, user: UserDep, db: DbDep
-) -> ApiResponse[OrganizationOut]:
+async def get_organization(org_id: UUID, user: UserDep, db: DbDep) -> ApiResponse[OrganizationOut]:
     return ok(await UserService(db).get_organization(org_id, user.org_id))

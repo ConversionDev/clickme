@@ -1,7 +1,8 @@
 """시뮬레이션 유스케이스 — 오케스트레이터 호출 + DB 영속 + SSE."""
+
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,14 +17,14 @@ from app.contracts.simulation_api import (
 )
 from app.contracts.simulation_pipeline import AdAnalysis, AdInput, PersonaConfig
 from app.contracts.sse import SimulationEvent, SimulationEventType
-from app.domains.simulations.repository import SimulationRepository
 from app.db.enums import SimulationStatus
 from app.db.models.report import Report
 from app.db.models.simulation import PersonaResponse, Simulation
 from app.db.session import SessionLocal
+from app.domains.simulations.repository import SimulationRepository
+from app.shared.envelope import ErrorCode
 from app.shared.events import bus
 from app.shared.exceptions import AppException
-from app.shared.envelope import ErrorCode
 
 
 def _ensure_registry() -> None:
@@ -67,7 +68,7 @@ class SimulationService:
             status=SimulationStatus.running,
             persona_count=body.persona_count,
             persona_config=persona_config.model_dump(mode="json"),
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
         await self.repo.create_simulation(sim)
         await self.db.commit()
@@ -211,7 +212,7 @@ class SimulationService:
         }
         sim.llm_cost_usd = round(len(state.traces) * 0.01, 4)
         sim.status = SimulationStatus.completed
-        sim.completed_at = datetime.now(timezone.utc)
+        sim.completed_at = datetime.now(UTC)
 
         self.repo.add_persona_responses(
             [
@@ -239,13 +240,23 @@ class SimulationService:
                     },
                     "detailedAnalysis": {
                         "kpi": state.prediction.kpi.model_dump() if state.prediction else {},
-                        "topDrivers": state.recommendation.top_drivers if state.recommendation else [],
-                        "topObjections": state.recommendation.top_objections if state.recommendation else [],
+                        "topDrivers": state.recommendation.top_drivers
+                        if state.recommendation
+                        else [],
+                        "topObjections": state.recommendation.top_objections
+                        if state.recommendation
+                        else [],
                     },
                     "actionItems": {
-                        "copySuggestions": state.recommendation.copy_suggestions if state.recommendation else [],
-                        "ctaSuggestions": state.recommendation.cta_suggestions if state.recommendation else [],
-                        "nextABTest": state.recommendation.next_ab_test if state.recommendation else None,
+                        "copySuggestions": state.recommendation.copy_suggestions
+                        if state.recommendation
+                        else [],
+                        "ctaSuggestions": state.recommendation.cta_suggestions
+                        if state.recommendation
+                        else [],
+                        "nextABTest": state.recommendation.next_ab_test
+                        if state.recommendation
+                        else None,
                     },
                 },
             )
@@ -276,7 +287,7 @@ class SimulationService:
     async def _fail(self, sim: Simulation, message: str) -> None:
         sim.status = SimulationStatus.failed
         sim.error_message = message
-        sim.completed_at = datetime.now(timezone.utc)
+        sim.completed_at = datetime.now(UTC)
         await self.db.commit()
 
 

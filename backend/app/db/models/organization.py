@@ -1,10 +1,11 @@
 """조직 — 결제 단위. 여러 멤버가 하나의 플랜 공유."""
+
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base, TimestampMixin, UUIDMixin
 from app.db.enums import PlanType
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Organization(Base, UUIDMixin, TimestampMixin):

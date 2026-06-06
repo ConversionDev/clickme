@@ -1,6 +1,6 @@
 """채팅 mock 에이전트 테스트."""
-import pytest
 
+import pytest
 from app.ai.agents.chat.agent import ChatAgent
 
 

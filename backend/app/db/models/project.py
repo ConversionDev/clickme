@@ -1,22 +1,25 @@
 """프로젝트(캠페인 단위) + 프로젝트 멤버(협업)."""
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base, TimestampMixin, UUIDMixin
 from app.db.enums import ProjectMemberRole, ProjectStatus
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Project(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "projects"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -33,7 +36,10 @@ class ProjectMember(Base, UUIDMixin):
     __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_members"),)
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True

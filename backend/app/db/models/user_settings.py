@@ -1,4 +1,5 @@
 """사용자 설정 (테마·알림)."""
+
 import uuid
 
 from sqlalchemy import ForeignKey, String

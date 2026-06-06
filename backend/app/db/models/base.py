@@ -1,4 +1,5 @@
 """ORM Base + 공통 믹스인 (UUID PK, created/updated 타임스탬프)."""
+
 import uuid
 from datetime import datetime
 

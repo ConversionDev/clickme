@@ -1,10 +1,10 @@
 """ads 영속 계층."""
+
 import uuid
 
+from app.db.models.ad import Ad
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.models.ad import Ad
 
 
 class AdRepository:

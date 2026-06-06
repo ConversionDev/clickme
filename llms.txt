@@ -110,19 +110,20 @@ clickstudio/
 ```
 app/
   main.py
-  shared/            # 공통 플랫폼 (도메인 무관) — "어디서나 쓰는 잡일"
-    config·security(JWT/OAuth2)·db·deps(get_current_user, require_role)
-    events(SSE 버스)·logging(기밀 평문 금지)
-  domains/           # ── 웹 영역 ── 리소스별 HTTP·CRUD·권한·영속
-    auth/ users/ organizations/ projects/ ads/
-    simulations/     #   시뮬레이터 에이전트 호출 오케스트레이션
-    chat/            #   채팅 에이전트 호출 + 세션/메시지 영속
-    reports/ admin/ billing/   # billing=매출/구독 관리(AI 아님)
-    #   각 도메인: router(얇게)·service·repository·models·schemas
+  shared/            # 공통 플랫폼 (도메인 무관, DB 제외)
+    config·security(JWT/OAuth2)·envelope(응답봉투)·deps·events·logging
+  db/                # ★ 데이터 영속 — ORM·ENUM·세션·Alembic (한곳만 보면 DB 전부)
+    models/          #   SQLAlchemy ORM 17테이블 (중앙)
+    enums.py         #   PG ENUM 10종
+    session.py       #   engine·SessionLocal·get_db
+    alembic/         #   마이그레이션
+  domains/           # ── 웹 영역 ── 리소스별 HTTP·CRUD·권한
+    auth/ users/ projects/ ads/ simulations/ chat/ reports/ admin/ billing/
+    #   각 도메인: router(얇게)·service·repository·dto(API 입출력만)
   ai/                # ── AI 엔진 영역 ── domains/ 를 전혀 모름
     kernel/          #   에이전트 공통 cross-cutting
       agent.py · registry.py · orchestrator.py
-      llm/(라우터+모달리티+image) · cost.py · tracing.py
+      llm/modality_router.py(+모달리티+image) · cost.py · tracing.py
     agents/
       analyzer/      #   ① 광고분석(모달리티 라우팅 VLM/텍스트) — 재사용 가능
       simulator/     #   ② pipeline.py(analyzer 호출→persona→reaction…) · state.py(SimState)
@@ -130,15 +131,15 @@ app/
       cost/          #   ④ ⏸P2
     prompts/
   infra/  storage.py(local_storage · s3_storage) · sqs.py(P2)
-  alembic/
 ```
 
-> **구현 노트(Track 0)**: ORM 모델은 `app/models/` **중앙화**(Alembic이 한 곳에서 일괄 import → autogenerate 용이).
-> `domains/`는 router·service·repository·schemas. (문서의 "models per domain"에서 이 부분만 조정.)
+> **구현 노트(Track 0)**: DB 레이어는 `app/db/` **한곳** — `models/`(ORM)·`enums.py`·`session.py`·`alembic/`.
+> `domains/`는 router·service·repository·**dto**(HTTP API용 Pydantic). ORM은 domains에 두지 않음.
+> **이름 3종 분리**: `db/models`=테이블 · `domains/*/dto`=API · `app/contracts`=FE/BE·파이프라인 SSOT · `shared/envelope`=응답봉투.
 > 비번 해시 = **bcrypt 직접 사용**(passlib는 bcrypt 4.x 비호환 → 제거). Neon = URL `postgresql+asyncpg://`+쿼리 제거,
 > pooler는 `statement_cache_size=0`·`ssl=require`(connect_args). 17테이블 클린 마이그레이션 `0001` + seed(05 이식) 기준선 확정.
 >
-> **구현 노트(스냅샷 2026-06)**: Track 0✅ · B/C/A **골격(mock LLM)** ✅ · Storage **local** ✅ · admin/billing⏳ · 실 LLM bake-off⏳ · FE `types.gen.ts`⏳.
+> **구현 노트(스냅샷 2026-06)**: Track 0✅ · B/C/A mock✅ · Storage local✅ · admin/billing✅ · FE baseline+types.gen.ts✅ · CI✅ · 구조수술(`app/db/`·dto·envelope)✅ · bake-off⏳ · RAG⏳.
 > 상세 진행·curl은 README, 코드가 진실. 이 문서는 **결정·계약**만 유지.
 
 ### 의존성 규칙 (단방향 — 명확함의 핵심)
@@ -214,6 +215,7 @@ frontend/src/
   단 SSE·TanStack·Zustand 쓰는 인터랙티브 앱 → **대부분 `'use client'`**(서버 컴포넌트는 정적 셸만).
   데이터는 FastAPI(TanStack Query)로 — **Next route handler/RSC 데이터패칭은 안 씀**(이중 백엔드 방지).
 - **인증 2단**: middleware=UX 라우팅(쿠키/role로 리다이렉트, soft) / **실 인가는 FastAPI `require_role`(hard)**.
+  ⚠️ middleware matcher는 **`/api`·`/uploads` 제외** — API는 rewrites로 FastAPI 직결(가로채면 HTML 반환 → JSON 파싱 에러).
 
 ---
 
@@ -460,9 +462,10 @@ GET  /simulations/{id}/events   → StreamingResponse(text/event-stream), 이벤
 - `env_file required: false` → `.env` 없어도 부팅.
 
 ### backend 의존성 (`backend/pyproject.toml`, uv)
-fastapi · uvicorn[standard] · pydantic · pydantic-settings · sqlalchemy[asyncio] ·
-asyncpg · alembic · python-jose[cryptography] · passlib[bcrypt] · python-multipart.
-`[tool.uv] package=false`(앱 → 루트 빌드 생략). dev: ruff · pytest · datamodel-code-generator(contracts, P0).
+fastapi · uvicorn[standard] · pydantic · pydantic-settings · email-validator · sqlalchemy[asyncio] ·
+asyncpg · pgvector · alembic · python-jose[cryptography] · **bcrypt**(passlib X — 4.x 비호환) · python-multipart.
+`[tool.uv] package=false`(앱 → 루트 빌드 생략). dev: ruff · pytest · pytest-asyncio · httpx.
+계약/타입 생성은 외부 도구 없이 **`scripts/export_contracts.py`(→JSON)·`scripts/export_types.py`(→types.gen.ts)`** 자체 구현.
 
 ### 온보딩 — 책임 분리 (핵심)
 | 선구성 (세팅 담당 1회) | 팀원 (매번) |
@@ -496,12 +499,12 @@ asyncpg · alembic · python-jose[cryptography] · passlib[bcrypt] · python-mul
 
 ### CI/CD — GitHub Actions (모노레포 path 필터)
 - 트리거: **PR → CI** · **main 머지 → CI+CD**. 환경 **dev → prod**(prod 승인 게이트, NFR-08).
-- **CI**:
-  - backend(`backend/**`): `uv sync` → ruff → pytest → `docker build` 검증
-  - contracts(`contracts/**`): 타입 재생성 → `git diff --exit-code` (드리프트 0)
-  - frontend(`frontend/**`): pnpm install → lint → build 검증 (배포는 Vercel)
-- **CD(main)**:
-  - backend: 이미지 빌드 → 레지스트리(**ECR 권장** — EC2 IAM 롤로 pull / 또는 GHCR) → **EC2 배포**(SSH/SSM로 pull + `docker compose up -d`)
+- **CI** (`.github/workflows/ci.yml`, path 필터):
+  - backend: `uv sync` → ruff → alembic(pgvector pg18 서비스) → seed → pytest → `docker build` 검증
+  - contracts: `export_contracts`+`export_types` 재생성 → `git diff --exit-code contracts/ frontend/src/api/types.gen.ts` (드리프트 0)
+  - frontend: pnpm install → **typecheck(tsc)** → build (※ JS lint 없음 — Python만 ruff. 배포는 Vercel)
+- **CD(main)** (`.github/workflows/cd-backend.yml`):
+  - backend: buildx(`docker-container` 드라이버, GHA 캐시) → **GHCR push**(`ghcr.io/<owner>/clickme-backend:{sha,latest}`) → `CD_ENABLED=true`면 EC2 SSH(`docker compose up -d`)
   - ※ **Docker 이미지(컨테이너 → 레지스트리)** ≠ **광고 이미지(사용자 업로드 → S3, boto3)**. 별개.
   - frontend: **Vercel Git 연동 자동 배포**(+PR 프리뷰) → Actions 불필요
 - **시크릿**: GitHub Actions Secrets = 레지스트리·배포 토큰만. **앱 시크릿은 호스트에만**(CI에 안 둠).
@@ -608,8 +611,9 @@ README(대안 설계)에서 우리 문서보다 나은 부분만 선별 흡수. 
 | 인바운드 어댑터 | `domains/*/router.py` (HTTP/SSE) | driving (외부→코어) |
 | 애플리케이션 | `domains/*/service.py` | 유스케이스 조율 |
 | 도메인 코어(순수) | `ai/agents/*` · 도메인 규칙 | DB·LLM 모름 |
-| 아웃바운드 어댑터 | `repository.py`(DB) · `ai/kernel/llm`(LLM) · `infra/storage`(파일) | driven (코어→외부) |
-| 플랫폼 글루 | `shared/`(config·security·db·events) | 프레임워크 |
+| 아웃바운드 어댑터 | `repository.py`(→`db/models`) · `ai/kernel/llm/modality_router` · `infra/storage` | driven |
+| DB 영속 | `db/`(models·session·alembic) | driven |
+| 플랫폼 글루 | `shared/`(config·security·envelope·events) | 프레임워크 |
 
 > 💡 **`shared/`** = 인프라 플랫폼(설정·DB·보안)이지 헥사고날 '도메인 코어'가 아님 — 이름이 헷갈리지 않게
 > `core` 대신 **`shared`** 채택(도메인 코어로 오해 방지). 도메인 코어는 `domains/`·`ai/agents/`에 있음.

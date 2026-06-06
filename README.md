@@ -5,7 +5,7 @@
 
 📖 **전체 설계·결정·근거는 [`llms.txt`](./llms.txt) (단일 SSOT)** 를 보세요. 이 README는 팀 온보딩·작업 시작용 요약입니다.
 
-> 현재 상태: **Track C·A + Storage 포트** — mock 시뮬/채팅(SSE) · CRUD · **POST /api/ads multipart**(local 저장, S3는 env 스왑). 다음: admin · 실 LLM · FE types.gen.ts.
+> 현재 상태(2026-06): **베이스라인 골격 완료** — Track 0/B/C/A(mock LLM) · Storage local · admin/billing · **FE baseline(Next.js + types.gen.ts)** · **GitHub Actions CI/CD** · 구조정리(`app/db/`·dto·envelope). 다음: 실 LLM bake-off · 채팅 RAG · Vercel/EC2 배포.
 
 ---
 
@@ -71,17 +71,22 @@ flowchart TB
 ### 디렉터리
 ```
 backend/app/
-  shared/     공통 플랫폼 (config·db·security·deps·events·logging)
-  domains/    웹: router → service → repository  (auth·projects·ads·simulations·chat·admin…)
+  shared/     공통 플랫폼 (config·security·envelope·deps·events·logging) — DB 제외
+  db/         ★ DB 한곳: models/(ORM 17) · enums.py · session.py · alembic/
+  domains/    웹: router → service → repository · dto  (auth·projects·ads·simulations·chat·admin…)
   ai/
-    kernel/   허브: orchestrator·registry·llm라우터·cost·tracing
+    kernel/   허브: orchestrator·registry·llm/modality_router·cost·tracing
     agents/   스포크: analyzer · simulator · chat · cost(P2)
+  infra/      storage(local/s3 포트) · sqs(P2)
 contracts/    ★ SSOT — Pydantic→JSON/TS (프론트·백 유일 결합점)
-frontend/     Next.js (별도 담당자)
+frontend/     Next.js App Router (api/client·sse · stores · features) — 별도 담당자
 infra/        nginx (EC2 배포용)
+.github/      workflows: ci.yml · cd-backend.yml
 ```
 
-- **단방향 의존**: `router→service→repository→DB`, `service→ai.kernel.registry→agents/*`. 에이전트끼리 직접 호출 ❌(오케스트레이터 중재).
+> **이름 규칙(혼동 방지)**: `db/models`=DB 테이블 · `domains/*/dto`=HTTP API · `contracts/`=FE·BE 계약 · `shared/envelope`=응답봉투.
+
+- **단방향 의존**: `router→service→repository→db/models`, `service→ai.kernel.registry→agents/*`. 에이전트끼리 직접 호출 ❌(오케스트레이터 중재).
 - **에이전트 4(레지스트리) / 3(제품 노출)**: 광고분석·시뮬레이터·채팅·비용(P2).
 
 ---
@@ -154,15 +159,20 @@ sequenceDiagram
 cd backend
 uv sync                                   # 의존성 (팀원은 이거면 끝)
 cp .env.example .env                       # DATABASE_URL(Neon) · JWT_SECRET 등 채우기
-uv run alembic upgrade head                # 마이그레이션 (auth 테이블 생성)
+uv run alembic upgrade head                # 마이그레이션 (app/db/alembic)
 uv run python -m scripts.seed              # 샘플 seed (admin@clickme.io / ChangeMe123!)
 uv run python -m uvicorn app.main:app --reload   # http://localhost:8000/api/health
-# (Windows AppLocker 등으로 `uvicorn` exe가 차단되면 `-m` 필수)
+# (Windows AppLocker 등으로 `uvicorn` exe가 차단되면 `python -m` 필수)
 
 # 프론트 (별도 담당자)
 cd frontend
 pnpm install
 pnpm dev                                   # http://localhost:3000  (/api → :8000 rewrites)
+
+# 계약 → 타입 생성 (스키마 바꾸면 실행, CI가 드리프트 검사)
+cd backend
+uv run python -m scripts.export_contracts  # → contracts/*.schema.json
+uv run python -m scripts.export_types      # → frontend/src/api/types.gen.ts
 
 # (선택) prod-like 통합 확인
 docker compose up --build                  # nginx + backend
@@ -184,10 +194,12 @@ docker compose up --build                  # nginx + backend
 | **0. 토대** ⛔선행 | shared · DB(17)+Alembic+seed · contracts 뼈대(응답봉투+error-code+JWT클레임) · auth | `/api/auth/login` + 보호 라우트 + 마이그레이션 |
 | **B. AI 엔진** (다같이·핵심) | kernel · analyzer(이미지 VLM 우선) · simulator(persona→reaction→…→report) · SSE progress | POST 시뮬 → SSE 진행률 → 20명 + 5지표 + report |
 | **C. 채팅** | domains/chat · agents/chat(tools·RAG-lite·토큰 SSE) | 세션→메시지→SSE + 시뮬 결과 참조 |
-| **A. 웹 CRUD** (마지막) | projects·ads(S3)·reports·dashboard·admin… | 엔드포인트 + 권한 + 테스트 |
+| **A. 웹 CRUD** (마지막) | projects·ads(Storage 포트)·reports·dashboard·admin·billing | 엔드포인트 + 권한 + 테스트 |
+| **FE baseline** ✅ | Next.js App Router · login/시뮬/채팅/admin · types.gen.ts | mock API로 전체 플로우 동작 |
+| **CI/CD** ✅ | GitHub Actions: ruff·pytest·contracts drift·FE build / GHCR push | PR→CI · main→CD |
 
 - **B는 mock LLM + 이미지 fixture로 개발** (실모델은 Phase 0 bake-off 후, Track A 없이 seed로).
-- **전체 DoD**: 로그인 → 광고 업로드 → 시뮬(SSE) → 5지표 리포트 → 채팅 + 관리자 + 다크모드.
+- **전체 DoD**: 로그인 → 광고 업로드 → 시뮬(SSE) → 5지표 리포트 → 채팅 + 관리자 + 다크모드. **(mock 기준 ✅)**
 
 ---
 
@@ -204,11 +216,13 @@ docker compose up --build                  # nginx + backend
 ## 배포 (개요)
 
 ```
-FE  app.* → Vercel (Next.js)
-BE  api.* → EC2 + docker-compose(nginx + uvicorn) · IAM 롤로 S3 접근
-DB  NeonDB · S3 (외부)
-CI/CD  GitHub Actions (개인 레포 테스트 → 팀은 Variables만 교체)
+FE   app.* → Vercel (Next.js · Git 연동 자동배포)
+BE   api.* → EC2 + docker-compose(nginx + uvicorn) · IAM 롤로 S3 접근
+DB   NeonDB · S3 (외부)
+CI   PR/main → ruff · pytest · contracts drift · FE build
+CD   main → buildx → GHCR push → (CD_ENABLED 시) EC2 배포
 ```
+> CD 활성화: repo Variable `CD_ENABLED=true` + Secrets(`DEPLOY_HOST·DEPLOY_USER·DEPLOY_SSH_KEY`). 미설정 시 GHCR push까지만.
 
 ---
 

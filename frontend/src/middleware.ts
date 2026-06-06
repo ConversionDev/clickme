@@ -5,6 +5,10 @@ const PUBLIC = ["/login"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  // rewrites → FastAPI. 인증은 백엔드 JWT가 담당 (middleware 개입 금지)
+  if (pathname.startsWith("/api") || pathname.startsWith("/uploads")) {
+    return NextResponse.next();
+  }
   if (PUBLIC.some((p) => pathname.startsWith(p))) {
     if (pathname === "/login" && req.cookies.get("clickme_auth")?.value === "1") {
       const role = req.cookies.get("clickme_role")?.value;
@@ -27,5 +31,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads).*)"],
+  matcher: ["/((?!api|uploads|_next/static|_next/image|favicon.ico).*)"],
 };

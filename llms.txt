@@ -1,0 +1,708 @@
+# Click Me — AI 광고 성과 시뮬레이터
+
+> 광고를 실제 집행하기 전에, AI로 생성한 다양한 가상 소비자(Persona)에게 먼저
+> 테스트하여 광고 성과를 예측하는 플랫폼. "실제 사람과 동일한 응답"이 아니라
+> "마케터의 직감보다 더 나은 데이터 기반 의사결정 근거"를 제공하는 것이 목적.
+>
+> 핵심 흐름: 광고 → **객관 분석**(모달리티 분기) → 페르소나 생성 → **페르소나별 주관 반응**
+> (텍스트=텍스트 LLM / 이미지=VLM) → 집계 → 5대 지표 → 개선안.
+
+---
+
+## 이 문서의 성격 (LLM/하네스용 컨텍스트)
+
+- 이 파일은 팀(Click Studio)이 **가장 좋은 아키텍처를 찾아가는 과정**의 단일 통합 컨텍스트다.
+- 모든 항목에는 상태 표기가 붙는다: `✅확정` · `🟡검토중` · `⏸보류(후순위)`.
+- 과거 초안 문서(`01~05`)는 이 문서로 **대체(superseded)** 되었다. 충돌 시 이 문서가 우선.
+- "열린 질문" 섹션은 아직 정해지지 않은 결정들이다. LLM은 이 부분을 단정하지 말 것.
+
+---
+
+## 프로젝트 메타
+
+| 항목 | 내용 |
+|---|---|
+| 팀명 | Click Studio (6명) |
+| 팀장 | 정요한 |
+| 팀원 | 강경구, 구보은, 권도연, 여태호, 임윤섭 |
+| 일정 | 베이스라인 **2026-06-12** · 최종 구현 **2026-07-08** · 발표 **2026-07-14** |
+| 작업 방식 | 백엔드/AI 다같이 협업(역할 고정 X) · 프론트엔드는 별도 담당자 |
+
+---
+
+## 기술 스택 ✅확정
+
+| 영역 | 기술 |
+|---|---|
+| Frontend | **Next.js** (React) · Zustand · TanStack Query |
+| Backend | **FastAPI** · Uvicorn · Pydantic · SQLAlchemy(Async) |
+| AI | LangChain · LangGraph · LangSmith |
+| LLM | Multi-LLM (OpenAI · Claude · Gemini) — 용도별 라우팅 |
+| DB | NeonDB (PostgreSQL) · pgvector |
+| Cloud | AWS S3 · AWS SQS(**선택**) · Cloudflare(**선택**) |
+| Auth | OAuth2 · JWT |
+| Infra | Docker · uv · GitHub Actions |
+| 통신 | SSE |
+| 마이그레이션 | Alembic |
+
+> ⚠️ **인증 구성 ✅확정**: **FastAPI 단일 인증** (python-jose/JWT, OAuth2).
+> 인증·SSE 모두 FastAPI가 직접 처리. **전 구간 단일 Python** (다른 언어 백엔드 없음).
+
+---
+
+## 아키텍처 ✅확정 (모듈러 모놀리스 · AI 엔진=허브-스포크 · 경계=헥사고날)
+
+> **이름은 축별로** (한 단어로 못 줄이는 게 정상 — 서로 다른 측면):
+> ① 배포 = **모듈러 모놀리스** (단일 프로세스 · 도메인 모듈) ← 헤드라인
+> ② 에이전트 조정 = **허브-스포크** (kernel=허브, agents=스포크, 스포크끼리 직접 호출 X → 허브 중재)
+> ③ 의존 경계 = **헥사고날(라이트)** (AI 코어 포트/어댑터)
+> ⚠️ 전체를 "헥사고날 아키텍처"로 통칭하면 과대 — 코어 경계 한 축만 해당.
+
+> **스타일 명확화**: 이건 **풀 DDD가 아니다**. 도메인별 패키징·Repository·포트/어댑터 등
+> DDD *일부만* 차용. 애그리거트·도메인이벤트·Application/Domain 레이어 분리 등 풀 DDD 전술
+> 패턴은 6명/5일 베이스라인엔 과설계 → 미채택. (단 "애그리거트 경계 규율"은 멘탈 모델로 차용:
+> `Simulation`이 자기 `persona_responses`·`report` 소유, 외부가 직접 변경 X.)
+
+### 핵심 원칙: 한 프로세스, 두 세계를 분리
+
+| | 웹 영역 (Web) | AI 엔진 영역 (Engine) |
+|---|---|---|
+| 성격 | 요청-응답, 빠름 (p95 200ms) | 롱러닝·스트리밍, 느림 (20명/1분) |
+| 일 | 인증·CRUD·권한·파일(S3) | 오케스트레이터 시뮬, LLM 호출 |
+| 의존 | DB·S3 직접 | **DB를 모름** (순수 함수처럼 입력→출력) |
+
+### 디렉터리 구조
+
+BP: **공유 커널 + 격리 에이전트** + **FE/BE는 contracts로만 결합**.
+
+### 모노레포 최상위 (프론트/백 경계 + 배포 레이아웃)
+```
+clickstudio/
+  docker-compose.yml   # 루트 — 전체 스택 오케스트레이션
+  .env / .env.example  # compose 보간용(포트·이미지태그). 시크릿 X
+  .gitignore · .cursorignore · .dockerignore   # ★ ignore 3종 모두 루트 단일 관리
+  frontend/            # Next.js·Zustand·TanStack — 별도 담당자. 백엔드 import X
+    Dockerfile         #   (옵션) Vercel이 소스에서 자동 빌드 → 불필요. 자체배포 때만
+    .env / .env.example#   NEXT_PUBLIC_* 공개 빌드설정만 (시크릿 절대 금지 — 번들 노출)
+  backend/             # FastAPI (아래 app/) — uv 여기에 전용
+    Dockerfile         #   multi-stage: uv sync → uvicorn(--workers 1) — EC2/CI가 빌드
+    pyproject.toml · uv.lock
+    .env / .env.example#   시크릿(DB·JWT·LLM키·S3) — gitignore
+  contracts/           # ★ SSOT — Pydantic → JSON Schema/TS (FE/BE 유일 결합점)
+  infra/  nginx/nginx.conf (backend VM 앞단, 사용 ✅) · db/init.sql(선택, 로컬 PG)
+  llms.txt
+```
+> **.env 분리 ✅**: 서비스별 분리 + `.env.example`만 커밋, `.env`는 gitignore(NFR-06).
+> ⚠️ **FE 공개 env**: Next.js `NEXT_PUBLIC_*` 는 번들에 박혀 브라우저로 노출 → **시크릿 0**. (prefix 없는 Next 서버 전용 env는 노출 X지만, 진짜 시크릿은 FastAPI에).
+> env 스코프 3개: 루트(compose 보간) · backend(런타임 시크릿: DB·JWT·LLM키 · **AWS키는 로컬만, EC2는 IAM 롤**) · frontend(`NEXT_PUBLIC_API_BASE_URL` 등 공개).
+> **프록시 규칙**: 프론트가 키(LLM 등)가 필요해 보이면 → 그 호출을 **백엔드가 대신**(프론트는 `/api`만 호출).
+> **nginx 사용 ✅(팀 결정)** → backend는 **VM + docker-compose(nginx + uvicorn)** 로 자체배포. FE는 Vercel 유지.
+> 필요: `infra/nginx/nginx.conf` · `backend/Dockerfile` · `docker-compose.yml`. `db/init.sql`은 선택(Neon=pgvector), frontend Dockerfile 불필요(Vercel).
+> nginx가 backend 앞단에서: SSE 버퍼링 · 업로드 10MB(`client_max_body_size`) · 보안헤더 · rate limit · 단일 origin(api).
+> ⚠️ 트레이드오프: VM = TLS 갱신(Let's Encrypt)·서버 운영 직접. PaaS로 가면 nginx 생략 가능.
+> **ignore 루트 단일 ✅**: `.gitignore`·`.cursorignore`·`.dockerignore` 각 1개. ⚠️ 루트 `.dockerignore`가
+> 적용되려면 compose **`build.context: .`(루트)** + `dockerfile: backend/Dockerfile`. per-service context(`./backend`)면
+> Docker가 루트 .dockerignore를 **안 읽음**. → 단일 `.dockerignore`가 두 서비스 정크(node_modules·.venv·.git·.env·.next·dist·__pycache__) 모두 제외.
+> **FE/BE 경계 = HTTP/SSE API + JWT + `contracts/` 타입.** 프론트는 백엔드를 import 안 하고
+> *오직 API로만* 통신 → 두 사람 완전 병렬. (frontend 내부 구조는 담당자 소관, 이 문서는 API 계약까지만)
+
+### backend/app/ (도메인 모듈러 + 헥사고날)
+```
+app/
+  main.py
+  shared/            # 공통 플랫폼 (도메인 무관) — "어디서나 쓰는 잡일"
+    config·security(JWT/OAuth2)·db·deps(get_current_user, require_role)
+    events(SSE 버스)·logging(기밀 평문 금지)
+  domains/           # ── 웹 영역 ── 리소스별 HTTP·CRUD·권한·영속
+    auth/ users/ organizations/ projects/ ads/
+    simulations/     #   시뮬레이터 에이전트 호출 오케스트레이션
+    chat/            #   채팅 에이전트 호출 + 세션/메시지 영속
+    reports/ admin/ billing/   # billing=매출/구독 관리(AI 아님)
+    #   각 도메인: router(얇게)·service·repository·models·schemas
+  ai/                # ── AI 엔진 영역 ── domains/ 를 전혀 모름
+    kernel/          #   에이전트 공통 cross-cutting
+      agent.py · registry.py · orchestrator.py
+      llm/(라우터+모달리티+image) · cost.py · tracing.py
+    agents/
+      analyzer/      #   ① 광고분석(모달리티 라우팅 VLM/텍스트) — 재사용 가능
+      simulator/     #   ② pipeline.py(analyzer 호출→persona→reaction…) · state.py(SimState)
+      chat/          #   ③ agent.py · rag.py(pgvector) · tools/(직접구현)
+      cost/          #   ④ ⏸P2
+    prompts/
+  infra/  s3.py · sqs.py
+  alembic/
+```
+
+> **구현 노트(Track 0)**: ORM 모델은 `app/models/` **중앙화**(Alembic이 한 곳에서 일괄 import → autogenerate 용이).
+> `domains/`는 router·service·repository·schemas. (문서의 "models per domain"에서 이 부분만 조정.)
+> 비번 해시 = **bcrypt 직접 사용**(passlib는 bcrypt 4.x 비호환 → 제거). Neon = URL `postgresql+asyncpg://`+쿼리 제거,
+> pooler는 `statement_cache_size=0`·`ssl=require`(connect_args). ⚠️ 기존 Neon에 17테이블+seed 이미 존재 → Alembic `stamp 0001`로 기준선.
+
+### 의존성 규칙 (단방향 — 명확함의 핵심)
+
+```
+router → service → repository → DB              (웹 영역)
+service → ai.kernel.registry → agents/*         (AI 호출은 레지스트리 경유)
+agents/* 는 domains/ 를 import 안 함. 에이전트끼리 직접 호출 X → orchestrator 중재.
+cross-cutting(tracing·cost·llm라우팅)은 kernel이 일괄 처리.
+```
+
+---
+
+## 에이전트 구성 ✅확정 (BP: 공유 커널 + 격리 에이전트)
+
+두 가지 세는 단위 (혼동 금지): **레지스트리(엔진) 4개 / 제품(서브시스템) 노출 3개.**
+내부 파이프라인 노드(persona/reaction/predict…)는 에이전트로 안 셈.
+
+| # | 에이전트(레지스트리) | 역할 | 제품 노출 | 단계 |
+|---|---|---|---|---|
+| ① | **광고분석** | 모달리티 라우팅 객관 속성 추출(VLM/텍스트) | 시뮬레이터 진입 + 채팅·비용 **재사용** | ✅ 베이스라인 |
+| ② | **시뮬레이터** | 페르소나 시뮬+집계+예측+개선 (①을 첫 단계로 호출) | 시뮬레이터 | ✅ 베이스라인 |
+| ③ | **채팅(RAG)** | 메인 진입점 어시스턴트, 사용자 데이터 RAG | 채팅 | ✅ 베이스라인 |
+| ④ | **광고 비용** | 예산 배분·비용 최적화 (AI) | 비용 | ⏸ P2 |
+
+- **왜 광고분석 분리?** 채팅(업로드 광고 분석)·비용(분석 기반 최적화)도 호출 → **재사용 가치**.
+  registry 비용 저렴 + 약간의 오버엔지니어링 용인 → 독립 Agent. (싫으면 시뮬레이터에 흡수해 3개로 축소 가능)
+- 베이스라인 = ①②③, ④비용은 P2.
+- **매출/구독/결제**는 에이전트가 아니라 `domains/billing` 관리 기능 (AI 아님). 비용(④ AI)과 분리.
+- **BP 5원칙**: ①공유 커널·격리 에이전트(=**허브-스포크**, choreography X) ②contract-first(병렬 안전)
+  ③Agent 통일 인터페이스(run/stream) ④cross-cutting은 kernel(tracing·cost·llm) ⑤웹↔AI 분리.
+- **에이전트 추가 = 4스텝**: `contracts/<x>` → `ai/agents/<x>`(Agent 상속) → `kernel.registry` 등록 → `.claude/skills/<x>`.
+
+---
+
+## 프론트 통합 설계 ✅확정 (별도 담당자 — "미리 설계해서 합치기")
+
+프론트는 다른 작업자가 진행. 합쳐질 수 있도록 **계약·규약을 미리 고정**한다.
+(frontend 내부 컴포넌트 구현은 담당자 소관, 이 문서는 경계·규약까지)
+
+### 진입 · 권한 라우팅
+- **메인(`/`) = RAG 채팅창** (채팅 에이전트② 진입점).
+- 로그인 → role 분기: **admin → `/admin`**, **user → `/`(메인 채팅)**.
+  백엔드 `require_role("admin")` 로 관리자 라우트 보호 (RBAC).
+
+### 베이스라인 라우트 맵 (광고분석은 `/simulator`에 통합 → `/analyze` 없음)
+| 구분 | 라우트 | 호출 |
+|---|---|---|
+| 공개 | `/login` | POST /auth/login |
+| user | `/`(메인채팅) · `/chat/{id}` | 채팅② SSE |
+| user | `/simulator` | 시뮬레이터①(분석+시뮬) SSE |
+| user | `/projects` · `/projects/{id}` · `/ads` · `/dashboard` · `/reports` | CRUD |
+| user | `/billing` · `/settings` · `/organization` | UI/CRUD |
+| admin | `/admin` · `/admin/users` · `/admin/chats` | 관리 API |
+
+### FE/BE 결합점 = contracts + 봉투 + 인증 + SSE
+- **타입**: `contracts/` → `types.gen.ts` 자동 생성 → FE import (타입 드리프트 0).
+- **응답 봉투**: `{success, data, error:{code,message}}` 통일.
+- **인증**: Access(헤더) + Refresh(httpOnly 쿠키 권장), 401→refresh→retry 인터셉터.
+- **SSE**: `/simulations/{id}/events`(progress·milestone·completed) · 채팅 토큰 스트림.
+
+### 권장 프론트 골격 + 상태 분리 규약
+```
+frontend/src/
+  api/      types.gen.ts(생성) · client.ts(JWT 인터셉터) · sse.ts(EventSource 래퍼)
+  stores/   Zustand — 클라 상태(auth·theme·ui)
+  queries/  TanStack Query — 서버 상태(useSimulations, useAds…)
+  app/      Next.js App Router(파일 기반 라우팅) · middleware.ts(role guard)
+  features/ 도메인 UI(chat·simulator·projects·admin…) · components/ 공용
+```
+- **상태 분리 BP**: Zustand=클라 전용(토큰·테마) / TanStack Query=서버 상태(캐싱·동기화). 섞지 않기.
+- **App Router 채택 ✅**: middleware(role 라우팅) · 중첩 layout(admin/user 셸)에 유리.
+  단 SSE·TanStack·Zustand 쓰는 인터랙티브 앱 → **대부분 `'use client'`**(서버 컴포넌트는 정적 셸만).
+  데이터는 FastAPI(TanStack Query)로 — **Next route handler/RSC 데이터패칭은 안 씀**(이중 백엔드 방지).
+- **인증 2단**: middleware=UX 라우팅(쿠키/role로 리다이렉트, soft) / **실 인가는 FastAPI `require_role`(hard)**.
+
+---
+
+## 핵심 파이프라인 ✅확정 (= 오케스트레이터 노드 = 추적 단위; 베이스라인 plain async)
+
+> **대전제 (가장 중요한 설계 결정)**: 광고 분석은 **감정을 넣지 않는다**. 객관적 속성만 추출.
+> 감정·해석은 **시뮬레이션 단계에서 페르소나별 VLM이 각자** 생성한다.
+> (같은 빨강도 페르소나마다 다르게 느낀다 → "받아들이는 것 자체를 LLM이 각각" 수행)
+
+```
+사용자입력 → analyze_ad → generate_personas → run_reactions(fan-out)
+           → validate → aggregate → predict → recommend → report
+   │           │            │             │
+   └───────────┴── 노드마다 StepTrace 1건 기록 ──────────────┘
+```
+
+| 단계 | 누가 | 출력 | 감정 |
+|---|---|---|---|
+| **광고 분석** (analyze_ad) | 모달리티 분기 (텍스트 LLM / VLM) | 카피·CTA·USP·**색상**·레이아웃·브랜드 | ❌ 사실만 |
+| **반응 시뮬** (run_reactions) | 페르소나별 × 모달리티 분기 | 페르소나별 주관 신호 | ✅ 주관 |
+
+### ★ 모달리티 라우팅 (VLM 시점 충돌의 해법) ✅확정
+VLM은 *단계(Phase)* 가 아니라 **광고 input_type에 의해 발동**된다. 텍스트엔 색·레이아웃이 없으니
+텍스트 LLM이 맞고, 주관적 시지각은 이미지가 있을 때만 살아난다 → 철학·비용 모두 정합.
+```
+analyze_ad     input_type 분기
+   ├ text  → 텍스트 LLM (카피/CTA/USP 추출)
+   └ image → VLM (색상/레이아웃/비주얼 추출)        둘 다면 각자 처리 후 융합
+   → 출력은 동일 AdAnalysis 스키마 (표준화, FR-03-2)
+run_reactions  페르소나별 × 광고 모달리티 분기
+   ├ text 광고  → 텍스트 LLM 반응 (분석 + 페르소나 컨텍스트)
+   └ image 광고 → VLM이 원본 이미지(S3 url) 직접 인식 + 페르소나 컨텍스트 → 주관 반응
+```
+- 광고 분석은 별도 화면이 아니라 **시뮬레이터의 첫 단계** (= 광고분석 에이전트① 호출, 채팅·비용도 재사용).
+- **베이스라인 입력 = 이미지(핵심·팀 공동) + 텍스트**. 영상·URL은 **후순위(P2)** — `ad_input_type` enum엔 두되 베이스라인 미구현.
+- 이미지 VLM 경로가 베이스라인 핵심. ⚠️ seed 광고가 전부 텍스트 → **이미지 샘플 fixture 필요**(image 경로 개발·데모용).
+- ⚠️ **비용**: 이미지 20명 × VLM. 다운스케일 + 싼 VLM(gpt-4o-mini / Gemini Flash)으로 완화.
+
+---
+
+## 입출력 계약 ✅확정 (Pydantic)
+
+그래프를 관통하는 단일 상태 객체 + 노드별 계약. 계약만 고정하면 노드 내부(모델·프롬프트)는 자유 교체.
+
+```python
+class SimState(BaseModel):
+    run_id: UUID
+    ad: AdInput                       # image_url | text + target_info
+    analysis: AdAnalysis | None        # 객관 속성 (감정 X)
+    personas: list[Persona] = []
+    reactions: list[PersonaReaction] = []
+    stats: AggregatedStats | None
+    prediction: Prediction | None      # 5대 지표
+    recommendation: Recommendation | None
+    traces: list[StepTrace] = []
+```
+
+| 노드 | In | Out |
+|---|---|---|
+| analyze_ad | `AdInput` | `AdAnalysis` |
+| generate_personas | `AdAnalysis, PersonaConfig` | `list[Persona]` |
+| run_reactions (fan-out) | `Persona, AdInput(image)` | `PersonaReaction` |
+| validate | `list[PersonaReaction]` | 필터본 + outlier_count |
+| aggregate | `list[PersonaReaction]` | `AggregatedStats` |
+| predict | `AggregatedStats` | `Prediction` |
+| recommend | `Prediction, AdAnalysis` | `Recommendation` |
+
+**PersonaReaction 신호 필드**: attention(0~1), sentiment(-1~1), click_intent(bool),
+conversion_intent(bool), comprehension(0~1), recall(0~1), emotion(str), reasoning(str), confidence(0~1).
+
+---
+
+## 핵심 지표 🟡검토중 (DB 스키마 직결 — 팀 확정 필요)
+
+> ⚠️ **아래 표는 제안(초안)일 뿐.** 실제 enum/지표 값은 **팀이 다같이 논의해서 확정**한다 —
+> LLM·개인이 단정하거나 미리 채우지 말 것. (segment enum 등 다른 지표성 enum도 동일)
+
+| 지표 | 정의 | 범위 | 산출 근거 |
+|---|---|---|---|
+| CTR Prediction | 예상 클릭률 | 0~100 | click_intent 비율 + attention |
+| Purchase Intent | 구매 전환 | 0~100 | conversion_intent 비율 |
+| Audience Fit | 타깃 적합도 | 0~100 | 타깃 세그먼트 sentiment |
+| Trust Score | 신뢰도 | 0~100 | comprehension + recall |
+| Rejection Rate | 거부감 | 0~100% | sentiment < 임계 비율 |
+| Confidence | 예측 신뢰도 | 0~1 | confidence 평균·분산 |
+
+---
+
+## AI 신뢰도 검증 레이어 ✅확정 (논문 기반) — 1순위 리스크 대응
+
+ClickMe 최대 리스크 = "LLM 결과가 실제와 차이". 약간의 오버엔지니어링 용인 → 검증을 정식 레이어로.
+
+### ① SSR — Semantic Similarity Rating (arXiv 2510.08338) ★핵심
+- 문제: LLM에 **직접 수치(0~1)** 를 물으면 분포가 비현실적(쏠림) — 현 `signals` 방식의 약점.
+- 해법: 페르소나는 **텍스트 응답** 생성 → 참조 문장과 **임베딩 유사도**로 Likert 분포 매핑.
+- 적용: run_reactions는 텍스트 reasoning 산출 → **`score_reactions`(신규 노드)** 가 pgvector
+  임베딩 유사도로 신호 점수화. → 직접 float 대신 SSR 점수. (pgvector 이미 보유 → 저비용)
+- 효과: 인간 test-retest의 **90%** 도달. 미결 #2(bool→Likert)를 **Likert 채택**으로 해소.
+
+### ② 다층 검증 (Individual / Group / System)
+| 층위 | 검증 | 구현 위치 |
+|---|---|---|
+| 개인 | 페르소나 응답이 인간 분포에 부합 | validate (IQR + 분포 체크) |
+| 집단 | 합성 분포 ≈ 실제 분포 | aggregate에서 **KS 유사도 > 0.85** |
+| 시스템 | 자동 지표 + 사람 감사 | report에 reasoning 동반(정성 감사) |
+
+### ③ 재현성·안정성 (NFR-04)
+- **Test-Retest**: 동일 광고+페르소나 샘플 재실행 → 일관성 측정. seed 고정.
+- ⚠️ "평균 페르소나 함정"·정체성 평탄화 경고 → 다양성 강제(temperature 분산·서사 앵커) 필수 유지.
+
+### ④ 편향·보정
+- 긍정 편향(hallucinatory optimism) → **Debate Agent(P2)** 로 보정.
+- **Calibration**: 실제 성과 입력 시 예측↔실측 보정 (`calibration_data` 테이블, 장기).
+
+### 리포트 노출 신뢰 지표
+Confidence · test-retest 재현성 · KS 분포 유사도 · 이상치율 · (장기)calibration error + **면책문구 필수**.
+
+> 참고 문헌: SSR(2510.08338) · 사회과학 시뮬 신뢰성(2410.23426) · "아직 신뢰 못함"(2501.08579) ·
+> 페르소나 합성응답 신뢰성(2602.18462). LLM은 이 단정을 과신 말 것 — 검증은 *비교 우위* 확보 수단.
+
+---
+
+## 추적·로깅 ✅확정 (추적 가능한 AI 개발 구조)
+
+목적: 결과 재현 · 실패 원인 분석 · 프롬프트 개선 · 모델 비교 · 버전 비교.
+
+**2층 구조** — 단계=노드=로그 1건으로 정렬:
+
+| 층 | 도구 | 잡는 것 | 용도 |
+|---|---|---|---|
+| LLM 트레이스 | **LangSmith** | prompt·model·token·latency (자동) | 프롬프트 디버깅·모델 비교 |
+| 도메인 트레이스 | **DB `agent_logs`** (append-only) | StepTrace 구조화 레코드 | 재현·버전비교 + **프론트 타임라인** |
+
+```python
+class StepTrace(BaseModel):
+    run_id: UUID; node: str; status: Literal["ok","error"]
+    model: str | None; prompt_version: str | None   # 버전 id (평문 아님)
+    input_ref: str; output_ref: str                  # DB row id / hash
+    latency_ms: int; token_in: int; token_out: int
+    error: str | None; langsmith_url: str | None
+```
+
+DB: `agent_runs`(파이프라인 1회) → `agent_logs`(N개, append-only), `simulations.id`에 연결.
+프론트는 `agent_logs`만 가볍게 폴링/SSE로 읽어 "분석 중…" 타임라인 렌더.
+**경량 CQRS**: Command=`simulation_results`(상태·결과) / Query=`agent_logs`(append-only 이벤트). 풀 CQRS는 과설계 ❌.
+
+> ⚠️ **기밀 경고 (NFR-06)**: 예산·크리에이티브는 **stdout 평문 로그 금지**.
+> 로그엔 `input_ref`(참조)만, 실제 내용은 **접근통제 DB**에만. LangSmith PII 마스킹 ON.
+
+---
+
+## LangGraph 패턴 결정
+
+| 패턴 | 결정 | 이유 |
+|---|---|---|
+| Multi-Agent (페르소나 독립평가→종합) | ✅ 베이스라인 (plain async) | 시뮬의 본질(fan-out/fan-in). 베이스라인은 `asyncio.gather`로 충분 |
+| 모달리티 라우팅 (텍스트/이미지 분기) | ✅ 베이스라인 | 광고 input_type별 텍스트 LLM vs VLM 선택 (위 ★) |
+| LangGraph 승격 | 🟡 P2 | 분기·체크포인트·Reflection 복잡도 오르면 plain async → LangGraph |
+| Reflection / 품질 검증 루프 | ⏸ P2 | 품질↑이나 비용·지연 2~3배. Debate와 통합 |
+| Planner Agent | ❌ 제외 | 파이프라인 고정 → 동적 계획 불필요. 비결정성만 추가 |
+
+> **오케스트레이션 전략 (README 채택)**: 베이스라인은 **중앙 오케스트레이터 + plain async**.
+> 에이전트끼리 직접 호출(choreography) ❌ → 오케스트레이터가 State를 쥐고 순서 할당.
+> LangGraph는 fan-out·체크포인트·Reflection이 필요한 P2에 **승격(강제 X)**. LangSmith는 두 경우 다 결합.
+
+---
+
+## RAG 결정
+
+| 후보 | 결정 | 이유 |
+|---|---|---|
+| **채팅 RAG (사용자 자기 데이터)** | 🟡 베이스라인-라이트 검토 | 그 사용자의 리포트·광고·세션을 pgvector 검색 → 콜드스타트 덜함(개인 데이터 금방 축적). 채팅②의 RAG |
+| 광고 사례 기반 (유사 과거광고→컨텍스트) | 🟡 Phase 2 (스키마는 지금) | **콜드스타트**: 출시 시 과거 결과 0건. 데이터 축적 후 켬 |
+| 마케팅 지식 기반 (이론 N개) | ❌ 제외 | 지식 신뢰도·할루시네이션 문제 |
+
+> `pgvector` 임베딩 컬럼은 **지금 스키마에 선반영**, 검색 노드(`retrieve_similar_ads`)는
+> analyze_ad↔generate_personas 사이에 **데이터가 쌓이면** 삽입. 베이스라인은 retrieval OFF.
+
+---
+
+## Multi-LLM 라우팅 ✅확정 (`ai/llm/` 팩토리)
+
+| 용도 | 모델 후보 | 메모 |
+|---|---|---|
+| 광고 분석 VLM | GPT-4o / Gemini Omni | 객관 추출 |
+| 페르소나 반응 VLM | gpt-4o-mini / Gemini Flash | **싼 쪽** (대량 호출) |
+| 예측·개선·채팅 | Claude Sonnet | 추론 |
+| 이미지 생성 ⏸P2 | OpenAI Image / Gemini Flash Image / Seedance | **셋 중 싼 거 벤치 후 택1**, `image.py`로 추상화 |
+
+---
+
+## 비동기 · SSE · SQS ✅확정
+
+### SSE (FastAPI 직접)
+
+```
+POST /projects/{id}/simulations → Simulation(running) 생성 + 백그라운드 태스크 발사 → {simulation_id} 즉시 반환
+GET  /simulations/{id}/events   → StreamingResponse(text/event-stream), 이벤트 버스 구독
+백그라운드: 오케스트레이터 실행(plain async) → 노드마다 event_bus.publish(progress) → 완료 시 결과 저장 + completed
+이벤트 유형: progress · milestone · completed
+```
+
+> ⚠️ **Redis가 스택에서 빠짐**. 인메모리 이벤트 버스는 **uvicorn 단일 워커**에서만 동작.
+> 베이스라인: **단일 워커 + 인메모리 버스** (가장 단순, 정답).
+> 멀티워커 확장 시: **Postgres `LISTEN/NOTIFY` 우선**(이미 PG 보유 → Redis 미도입).
+> ⚠️ Neon은 pooled 아닌 **direct 연결 + 상시 compute** 필요 → 검증 후, 막히면 그때만 Redis fallback.
+
+### SQS (표준 큐 = 순서 비보장 전제) — **선택** (베이스라인·소규모는 asyncio로 충분)
+
+- at-least-once + out-of-order 가정 → **모든 워커 핸들러는 멱등(idempotent)**.
+- `simulation_id` + `node` 단위 **상태 머신**을 DB에 두고 이미 처리된 메시지는 무시.
+- SSE 진행률은 "완료된 노드 집합"을 DB에서 읽어 렌더 (이벤트 순서 의존 X).
+- ⏸ 베이스라인은 `asyncio.create_task`(같은 프로세스), 최종은 SQS→별도 worker.
+  `run_pipeline`을 순수 함수로 떼면 호출부만 `create_task`→`sqs.send`로 교체.
+
+---
+
+## 엣지·배포 (nginx) ✅확정
+
+- **nginx = backend 앞단** (LB 아님): TLS 종료 · `/api`·SSE 프록시 · 보안헤더 · rate limit · 10MB 업로드.
+  → **FE는 nginx가 안 서빙**(Vercel/`next dev`가 담당). 단일 origin은 서브도메인+쿠키 공유로(배포 섹션 참고).
+- **"API Gateway 패턴"은 nginx가 충족.** AWS **API Gateway(제품)** 는 SSE 버퍼링·29s 타임아웃으로 사실상 불가 → ⏸.
+  managed가 필요하면 API Gateway가 아니라 **ALB**(스트리밍 지원).
+- **LB 직접 구현 ❌** — nginx upstream / ALB 같은 검증 컴포넌트가 담당.
+  베이스라인 = **upstream 1대 "껍데기"만**, 확장 시 replica·ALB만 추가.
+- **SSE 프록시 필수**: `proxy_buffering off` · `proxy_read_timeout 3600s` · `proxy_http_version 1.1` ·
+  `Connection ""` + FastAPI가 **`X-Accel-Buffering: no`** 헤더 병행. `X-Forwarded-For` 전달(→audit IP).
+- ⚠️ replica 2+ 전에 **이벤트 버스 공유(Redis/NOTIFY) 먼저** → 그다음 LB + sticky(nginx ip_hash/ALB stickiness).
+  uvicorn **`--workers 1`** 유지. **순서: 버스 공유 → replica 증가 → LB 활성화.**
+- 로컬 개발은 **Next.js rewrites**(`next.config` `/api`→backend)로 충분(nginx 없이) — nginx는 자체배포 때만.
+
+---
+
+## 인프라 구성 & 온보딩 ✅확정
+
+세팅 담당이 **설정 가능한 모든 것을 선구성**하고, 팀원은 **`uv sync`만** 하면 개발 시작.
+
+### 컨테이너 구성 (루트 `docker-compose.yml`, 2서비스 = nginx + backend) — EC2/prod-like
+- `nginx`: `nginx:alpine` + `infra/nginx/nginx.conf` · `:80/:443` · `/api`·SSE → backend 프록시 (FE 안 서빙).
+- `backend`: `backend/Dockerfile`(uv → uvicorn **`--workers 1`**) · `:8000` 내부(nginx만 접근).
+- **NeonDB·S3 = 외부 managed**(compose 밖). 로컬 PG는 `--profile local-db` 옵션.
+- **로컬 개발**: 보통 nginx 없이 `uv run uvicorn`(:8000) + FE `next dev`(:3000, rewrites `/api`→8000). compose는 prod 통합 확인용.
+- `env_file required: false` → `.env` 없어도 부팅.
+
+### backend 의존성 (`backend/pyproject.toml`, uv)
+fastapi · uvicorn[standard] · pydantic · pydantic-settings · sqlalchemy[asyncio] ·
+asyncpg · alembic · python-jose[cryptography] · passlib[bcrypt] · python-multipart.
+`[tool.uv] package=false`(앱 → 루트 빌드 생략). dev: ruff · pytest · datamodel-code-generator(contracts, P0).
+
+### 온보딩 — 책임 분리 (핵심)
+| 선구성 (세팅 담당 1회) | 팀원 (매번) |
+|---|---|
+| 레포 골격 · `docker-compose` · `Dockerfile`(FE/BE) · `nginx.conf` | **`uv sync`** (백엔드 의존성) |
+| `.env` 시크릿(DB·JWT·LLM키·S3) **안전 공유** | (FE 담당) `pnpm install` |
+| Neon 연결 · pgvector 확장 · Alembic 초기 마이그레이션 | `docker compose up` (통합 확인 시만) |
+| `contracts/` 타입 생성 파이프라인 · `.env.example` 3종 | — |
+
+→ 팀원은 클론 후 **`uv sync` 한 번**이면 백엔드 가동. 시크릿·인프라·DB는 **안 만짐**.
+
+### 부팅 (세팅 담당)
+`cp backend/.env.example backend/.env`(값 채움) → `docker compose up --build`
+→ `/api/health`(nginx→backend 관통 확인). FE는 Vercel(prod)/`next dev`(로컬) 별도.
+
+---
+
+## 프로덕션 배포 & CI/CD ✅확정 (CI/CD = GitHub Actions)
+
+### 배포 토폴로지 (실서비스)
+```
+[Cloudflare DNS·CDN·TLS — 선택]
+  app.clickme.io → Vercel                       (Next.js · CDN · PR 프리뷰)
+  api.clickme.io → EC2 (compose: nginx+uvicorn)  (TLS: Let's Encrypt/Cloudflare · Elastic IP · SSE 직결)
+                     ├ NeonDB · S3 · SQS(선택)   ← EC2 IAM 롤로 S3/SQS 접근(AWS 키 불필요)
+```
+- **FE = Vercel** (GitHub Pages ❌ — cross-origin 쿠키·SSE 부적합).
+- **BE = EC2 + docker-compose(nginx + uvicorn)** (nginx 사용 결정). 인스턴스 t3.medium 권장 · Elastic IP · **IAM 롤**(S3/SQS). 이미지 이식 가능 → 필요시 PaaS/ECS 대안.
+- **origin**: 서브도메인 + refresh 쿠키 `Domain=.clickme.io` 공유, **SSE는 api 직결**.
+- **nginx = backend 앞단**: SSE 버퍼링 · 10MB 업로드 · 보안헤더 · rate limit · 단일 origin. TLS는 Let's Encrypt/Cloudflare.
+
+### CI/CD — GitHub Actions (모노레포 path 필터)
+- 트리거: **PR → CI** · **main 머지 → CI+CD**. 환경 **dev → prod**(prod 승인 게이트, NFR-08).
+- **CI**:
+  - backend(`backend/**`): `uv sync` → ruff → pytest → `docker build` 검증
+  - contracts(`contracts/**`): 타입 재생성 → `git diff --exit-code` (드리프트 0)
+  - frontend(`frontend/**`): pnpm install → lint → build 검증 (배포는 Vercel)
+- **CD(main)**:
+  - backend: 이미지 빌드 → 레지스트리(**ECR 권장** — EC2 IAM 롤로 pull / 또는 GHCR) → **EC2 배포**(SSH/SSM로 pull + `docker compose up -d`)
+  - ※ **Docker 이미지(컨테이너 → 레지스트리)** ≠ **광고 이미지(사용자 업로드 → S3, boto3)**. 별개.
+  - frontend: **Vercel Git 연동 자동 배포**(+PR 프리뷰) → Actions 불필요
+- **시크릿**: GitHub Actions Secrets = 레지스트리·배포 토큰만. **앱 시크릿은 호스트에만**(CI에 안 둠).
+- 브랜치: main 보호 + PR 리뷰 필수(6명).
+- **레포 이식성**: 배포 대상(레지스트리·앱이름·호스트 URL)은 하드코딩 X → **GitHub repo Variables/Secrets**.
+  개인 레포에서 먼저 테스트 → 팀 레포는 **Variables 값만 교체**(워크플로 YAML 동일) = "주소만 바꾸면 됨".
+
+---
+
+## 채팅 에이전트 도구: MCP 회피, 직접 구현 ✅확정
+
+> **MCP가 값어치 있는 경우** = 외부 시스템 + **사용자별 인증 위임** 필요 시.
+> **우리** = DB 하나 + **인증키 하나**. 유저 수만큼 MCP 세션·토큰만 비대해질 뿐 이득 없음.
+> → 채팅 도구를 MCP 서버가 아니라 **내부 service/repository를 래핑한 순수 함수 + function-calling**으로 직접 구현.
+
+```
+ai/tools/  get_simulation_result.py · list_user_ads.py · search_reports.py
+           (내부 repository 호출 → 인증·권한 이미 적용된 코드 재사용)
+```
+외부 SaaS 연동이나 사용자별 OAuth가 필요해지면 그때 MCP 재검토.
+
+---
+
+## 데이터 모델 상세 (DDL 재생성용 — 04_DB설계.sql 흡수)
+
+확장: `CREATE EXTENSION IF NOT EXISTS vector;` `"uuid-ossp";`
+모든 PK = `UUID DEFAULT gen_random_uuid()`. 타임스탬프 = `TIMESTAMPTZ DEFAULT NOW()`.
+
+### ENUM (10종)
+```
+user_role: admin|user                 project_status: active|archived
+project_member_role: owner|editor|viewer   ad_input_type: image|text|video|url
+ad_status: pending|analyzing|completed|failed   simulation_type: ad_reaction|survey
+simulation_status: pending|running|completed|failed   chat_role: user|assistant
+plan_type: free|professional|enterprise   campaign_objective: awareness|conversion
+```
+
+### 테이블 (17개 + 추가 예정)
+
+- **organizations** (결제단위): name, plan_type(plan_type 기본 free), created/updated
+- **users**: organization_id→org(CASCADE), email(UNIQUE), password_hash, name, role(user), is_active, last_login_at. *관리자 직접생성, 자가가입 없음*
+- **refresh_tokens**: user_id(CASCADE), token_hash(UNIQUE), expires_at, revoked
+- **projects** (캠페인단위): organization_id, created_by→users, name, description, status(active)
+- **project_members**: project_id(CASCADE), user_id(CASCADE), role(viewer), UNIQUE(project_id,user_id)
+- **ads**: project_id(CASCADE), created_by, name, input_type, storage_path/url(이미지·영상), text_content JSONB(텍스트), source_url(URL), analysis_status(pending), analysis_result JSONB, analysis_confidence FLOAT[0~1], analysis_error
+- **persona_templates** (RAG용·독립): name, cluster_id, attributes JSONB, **embedding vector(1536)**, is_public. ivfflat 인덱스(vector_cosine_ops, lists=100)
+- **simulations**: project_id, ad_id, created_by, simulation_type(ad_reaction), objective(conversion), status(pending), persona_count(20), persona_config JSONB, requested/received_count, sample_size, results_summary JSONB, llm_cost_usd FLOAT, started_at/completed_at, error_message
+- **persona_responses**: simulation_id(CASCADE), persona_id, producer_id, segment, persona_attributes JSONB, **signals JSONB**, reasoning, confidence[0~1], is_outlier, outlier_reason, llm_model, tokens_used, response_time_ms
+  - `signals` = {attention 0~1, sentiment -1~1, click_intent bool, conversion_intent bool, comprehension 0~1, recall 0~1}  ← **v1.2 계약**
+- **debate_results** ⏸P2: simulation_id, positive/negative_persona_id, positive_arguments/counter_arguments/synthesis JSONB, adjusted_scores JSONB({click_intent_adjustment, bias_version})
+- **reports**: simulation_id(UNIQUE,CASCADE), report_data JSONB, pdf_url, disclaimer(기본값↓)
+  - `report_data` = {executiveSummary{overallScore,verdict,topPriority}, detailedAnalysis{kpi,funnel,bySegment,topDrivers,topObjections}, actionItems{immediate,copySuggestions,ctaSuggestions,nextABTest}}
+  - disclaimer 기본값: `"본 결과는 AI 시뮬레이션 기반 예측입니다. 실제 광고 성과와 ±20~30% 오차가 있을 수 있습니다."`
+- **calibration_data** ⏸: simulation_id(SET NULL), predicted_ctr_score, actual_ctr_percent, industry, platform, ad_format, submitted_by, verified
+- **chat_sessions**: user_id(CASCADE), project_id(SET NULL), title(기본 '새 채팅')
+- **chat_messages**: session_id(CASCADE), role, content, metadata JSONB({simulationId,reportId,adId}), tokens_used
+- **generated_ads** ⏸P2: project_id, created_by, prompt, style, aspect_ratio(1:1), status, image_url, storage_path, is_saved, saved_at, generation_model, error_message
+- **user_settings**: user_id(UNIQUE,CASCADE), theme(light|dark, 기본 light), notifications JSONB
+- **audit_logs**: user_id(SET NULL), action, resource, resource_id, metadata JSONB, ip_address
+- **추가 예정**: `agent_runs`/`agent_logs`(append-only 트레이스 — 단 persona_responses가 이미 llm_model·tokens_used·response_time_ms 보유, 중복 설계 주의)
+
+기타: 각 테이블 FK·상태별 인덱스 다수. `update_updated_at()` 트리거 → organizations/users/projects/ads/chat_sessions/user_settings.
+
+> ⚠️ **스키마 델타 (결정 필요)**: 우리 아키텍처는 "페르소나별 감정 해석(emotion)"을 강조했으나
+> 기존 `signals` v1.2엔 emotion 필드가 **없음**. 유지하려면 signals에 `emotion`(str) 추가 필요.
+> 또 run_reactions가 이미지 VLM을 쓰는데 현 ads 스키마는 분석을 텍스트 JSONB로만 보관 → 원본 이미지 url을 reaction에 넘기는 흐름은 OK(ads.storage_url 사용).
+
+> Alembic 첫 마이그레이션에 `CREATE EXTENSION IF NOT EXISTS vector` 명시.
+> 런타임은 asyncpg, 마이그레이션 env는 async 설정(or psycopg2 병행).
+
+---
+
+## Seed 데이터 (개발/테스트용 — 05_seed_data.sql 흡수)
+
+**고정 UUID 패턴**: org/user `0000…0001~5`, project `1000…`, ad `2000…`, persona_template `3000…`, simulation `4000…`, chat `5000…`.
+
+**개발 계정** (bcrypt 해시):
+| 이메일 | 비번 | role | 조직 |
+|---|---|---|---|
+| admin@clickme.io | `ChangeMe123!` | admin | ClickMe 관리조직(enterprise) |
+| kim@techstartup.io | `Password123!` | admin | 테크스타트업(professional) |
+| lee@ / park@techstartup.io | `Password123!` | user | 테크스타트업 |
+| choi@agency.io | `Password123!` | admin | 마케팅에이전시(free) |
+
+**샘플 데이터**: 프로젝트 3개, 텍스트 광고 3개(2개 분석완료/1개 분석중), **페르소나 템플릿 6 클러스터**(20대여성직장인·30대남성직장인·40대여성주부·20대남성대학생·50대남성자영업자·30대여성프리랜서, attributes에 age/gender/occupation/income/location/lifestyle/media_channels/pain_points/values), 완료 시뮬 1건(20명, overallScore 74, llm_cost $0.42), persona_responses 6건(gpt-4o-mini), report 1건, 채팅 세션 1개(메시지 4개).
+
+> seed의 persona_templates.attributes 구조가 generate_personas 노드의 Persona 3계층(인구통계/심리통계/서사) 설계와 연결됨 — 재사용 가능한 출발점.
+
+---
+
+## 설계 보강 (초기설계 README 흡수) ✅확정
+
+README(대안 설계)에서 우리 문서보다 나은 부분만 선별 흡수. 충돌 항목은 위에서 베이스라인 기준으로 정리됨.
+
+### 모듈러 모놀리스 (단일 Python)
+- 완전 MSA는 6인 주니어에 과설계 → **물리 단일 프로세스, 모듈·권한 격리**로 도메인 소유권·보안만 취함.
+- 단일 PostgreSQL · 단일 `app` 스키마(Python/Alembic) + **서비스별 최소권한 계정**(선택).
+
+### 헥사고날 매핑 (ports/adapters — 폴더는 관례 이름 유지)
+폴더를 `ports/`·`adapters/`로 만들지 않는다. **친숙한 레이어 이름이 곧 포트/어댑터**:
+
+| 헥사고날 | 우리 위치 | 방향 |
+|---|---|---|
+| 인바운드 어댑터 | `domains/*/router.py` (HTTP/SSE) | driving (외부→코어) |
+| 애플리케이션 | `domains/*/service.py` | 유스케이스 조율 |
+| 도메인 코어(순수) | `ai/agents/*` · 도메인 규칙 | DB·LLM 모름 |
+| 아웃바운드 어댑터 | `repository.py`(DB) · `ai/kernel/llm`(LLM) · `infra/s3` | driven (코어→외부) |
+| 플랫폼 글루 | `shared/`(config·security·db·events) | 프레임워크 |
+
+> 💡 **`shared/`** = 인프라 플랫폼(설정·DB·보안)이지 헥사고날 '도메인 코어'가 아님 — 이름이 헷갈리지 않게
+> `core` 대신 **`shared`** 채택(도메인 코어로 오해 방지). 도메인 코어는 `domains/`·`ai/agents/`에 있음.
+> 효과: VLM 교체 = **아웃바운드 어댑터만 교체**. (풀 헥사고날 프레임워크는 ❌ 과설계)
+
+### contracts/ = 단일 진실 공급원(SSOT)
+- `contracts/<x>.schema.json` = Pydantic 원본에서 JSON/TS 생성 → 프론트·백 계약 SSOT.
+- 효과: 스포크끼리 서로 모르고 계약만 맞춤 → **6명 병렬 충돌 0**. (에이전트 추가 4스텝은 위 "에이전트 구성" 참고)
+
+### 뺀 것 (README → 제외)
+존재하지 않는 파일 링크(docs/adr·architecture.svg) · 빠른시작 명령(코드 골격 전) ·
+Cloudflare R2(→S3 유지) · VTR/ROAS(→영상·예산 필요, P2). **백엔드는 전 구간 단일 Python.**
+
+---
+
+## Phase 범위
+
+### Phase 0 (지금~1주): bake-off Gate
+`contracts` + fixtures + **모델 bake-off**(Ollama/후보 LLM 비교 채점 → 통과 모델 선정).
+orchestration = plain async. ※ Multi-LLM 라우팅의 "모델 선정 게이트".
+
+### 베이스라인 (~6/12)
+**이미지(핵심)+텍스트** 광고 분석(모달리티 라우팅; 영상·URL은 P2) · 페르소나 20명(UI 조절) · 5대 지표 · 채팅 SSE ·
+로그인/관리자(FastAPI 인증) · 사용자/관리자 페이지 · 다크모드 · PDF/결제/알림 **UI만**.
+
+### 최종 (~7/8) ⏸
+영상(ffmpeg+Whisper) · URL분석(Playwright) · Debate/Reflection · LangGraph 승격 ·
+광고 생성+보관함 · 비용 에이전트 · 팀 관리(멤버 초대) · 사례기반 RAG ON · SQS 워커 분리 · Redis 캐시(P3).
+
+---
+
+## 베이스라인 실행 계획 ✅ (API 표면 + 병렬 트랙)
+
+목적: **계약 기준으로 충돌 없이** 작업. 팀 합의 순서 = Track 0 → **B(다같이)** → C → A. "나중에 결정"(열린 질문)은 제외.
+
+### 베이스라인 API 표면 (`/api/*` · 응답봉투 `{success,data,error}`)
+| 도메인 | 엔드포인트 |
+|---|---|
+| auth | POST `login` · `refresh` · `logout` · `change-password` |
+| users/org | GET `users/me` · GET `organizations/{id}` · `users/me/settings`(GET/PATCH theme) |
+| projects | GET/POST `projects` · GET/PATCH/DELETE `projects/{id}` |
+| ads | GET `projects/{id}/ads` · POST `ads`(image/text + S3) · GET `ads/{id}` |
+| simulations | POST `projects/{id}/simulations`→{id} · GET `simulations/{id}` · **GET `simulations/{id}/events`(SSE)** · GET `projects/{id}/simulations` |
+| reports | GET `simulations/{id}/report` · GET `reports`(history) · GET `dashboard` |
+| chat | GET/POST `chat/sessions` · GET `chat/sessions/{id}/messages` · **POST messages → SSE 스트림** |
+| admin | GET `admin/users` · POST/PATCH · GET `admin/chats` · GET `admin/usage` |
+| billing | GET `billing`(플랜 UI만) |
+
+> **광고 이미지 업로드 ✅**: 베이스라인 = `POST /api/ads` **multipart → FastAPI 검증(타입·10MB) → boto3 `put_object`(EC2 IAM 롤) → S3**.
+> presigned URL은 **P2**(영상 100MB·동시 업로드 스케일 시). 단순·검증·권한 이점으로 베이스라인은 백엔드 경유.
+
+### 작업 순서 ✅ (팀 합의: Track 0 → **B(다같이)** → C → A)
+
+병렬 분담 대신 **핵심부터 전원 순차**. 토대 후 Track B를 6명이 함께, 그다음 C, A는 마지막.
+
+**Track 0 — 토대 (선행, ~2일) ⛔ B 시작 전 필수**
+`shared/`(config·db·security·deps·events·logging) · DB models(17)+Alembic+seed ·
+`contracts/` 뼈대(**응답봉투 `{success,data,error}` + 공통 error-code enum** 포함) · auth(login/refresh/RBAC).
+**JWT 클레임 = `{sub(user_id), role, org_id, exp}`** (middleware·`require_role`이 읽음).
+*DoD*: `/api/auth/login` + 토큰 보호 라우트 + 마이그레이션 + `/api/health`.
+
+**Track B — AI 엔진 (전원 함께, 합의 1순위·핵심)**
+6명이 함께지만 충돌 없게 **내부 분할**:
+- `ai/kernel`(agent·registry·orchestrator) · llm 라우터(모달리티)
+- `agents/analyzer`(객관 추출, **이미지 VLM 경로 우선**) · generate_personas
+- run_reactions(fan-out) · validate(IQR)
+- aggregate · predict(5지표) · recommend · report
+- `simulations` 오케스트레이션 + SSE progress + tracing(agent_logs)
+**mock LLM 우선**(실모델은 bake-off 후). 광고는 **seed + 이미지 fixture로 개발**(Track A 불필요).
+*DoD*: POST simulation → SSE 진행률 → 20명 결과 + 5지표 + report.
+
+**Track C — 채팅 에이전트 (B 다음)**
+`domains/chat`(세션/메시지) · `agents/chat`(tools 직접구현 + RAG-lite + 토큰 SSE).
+*DoD*: 세션 → 메시지 → SSE 스트리밍 + 시뮬 결과 참조.
+
+**Track A — 웹 도메인 CRUD (마지막)**
+projects · ads(S3 업로드) · users/org · reports(조회) · dashboard · settings · billing(UI) · admin.
+패턴 `router→service→repository`. ⚠️ **E2E 베이스라인 흐름(업로드·프로젝트·리포트 조회)에 필요 → 늦춰도 6/12 안엔 완료**.
+*DoD*: 엔드포인트 + 권한 + 테스트.
+
+### 규칙 (충돌 0의 핵심)
+- **계약 우선**: 새 작업은 `contracts/`에 스키마부터 → 그다음 구현.
+- 트랙 간 결합은 **registry · contracts · 응답봉투 · SSE 이벤트**로만. 직접 import 금지.
+- **전체 DoD(베이스라인)**: 로그인 → 광고 업로드 → 시뮬(SSE) → 5지표 리포트 → 채팅 + 관리자 페이지 + 다크모드(FE).
+
+---
+
+## 열린 질문 (아직 미확정 — LLM은 단정 금지)
+
+1. 핵심 지표 5종 — **팀 다같이 논의 후** enum/스키마 확정 (위 표는 제안 초안, 단정 금지).
+2. intent 필드 타입 bool → **Likert** (SSR 논문이 Likert 지지 → 채택 권장). 전환 시 `signals` 스키마 변경.
+3. segment enum 목록 — **팀 다같이 논의 후** 확정.
+4. 이미지 생성 모델 최종 선택 (벤치 후).
+5. A/B 광고 비교 기능 포함 여부.
+6. Calibration 기능 포함 시점.
+7. 발표/데모용 샘플 광고 선정.
+8. 멀티워커 SSE 버스 = **Postgres LISTEN/NOTIFY 우선**(Redis 미도입). 단 Neon은 direct 연결 필요 → 검증, 막히면 Redis fallback. (캐시용 Redis는 별개 P3)
+9. `signals`에 `emotion`(str) 추가 여부 — image 반응(VLM) 시 페르소나별 감정 산출과 연결.
+10. 풀 DDD(애그리거트·도메인이벤트) 도입 여부 — 현재 도메인 모듈러+헥사고날(라이트).
+11. BE 호스트 = **EC2 + compose(nginx+uvicorn)** ✅(잠정). 남은 것: 인스턴스 크기(t3.small~medium) · Elastic IP · TLS(Let's Encrypt/Cloudflare) · IAM 인스턴스 롤(S3/SQS, AWS 키 불필요).

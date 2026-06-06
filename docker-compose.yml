@@ -1,0 +1,28 @@
+# Click Me — 루트 docker-compose (EC2/prod-like 통합 확인용)
+# 2서비스: nginx(엣지) + backend(FastAPI). NeonDB·S3는 외부 managed.
+# 로컬 개발은 보통 `uv run uvicorn`(:8000) + FE `next dev`(:3000)로 충분.
+#
+# 사용: cp backend/.env.example backend/.env (값 채움) → docker compose up --build
+
+services:
+  backend:
+    build:
+      context: .                  # 루트 컨텍스트 → 루트 .dockerignore 적용
+      dockerfile: backend/Dockerfile
+    image: clickme-backend:${TAG:-dev}
+    env_file:
+      - path: ./backend/.env
+        required: false           # .env 없어도 부팅(기본값)
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped

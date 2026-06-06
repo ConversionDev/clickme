@@ -1,0 +1,13 @@
+# 루트 단일 .dockerignore (compose build context = 루트)
+**/.venv/
+**/__pycache__/
+*.pyc
+**/.env
+.git
+.gitignore
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+**/.pytest_cache/
+**/.ruff_cache/
+*.md

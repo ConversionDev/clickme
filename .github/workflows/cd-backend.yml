@@ -1,0 +1,86 @@
+# Click Me — 백엔드 CD (main 머지 시)
+# 기본: Docker build + GHCR push만 (CD_ENABLED 미설정 시)
+# CD_ENABLED=true + Secrets 설정 시 EC2 SSH 배포
+#
+# Repository Variables (선택):
+#   CD_ENABLED=true          — EC2 배포 활성화
+#   DOCKER_IMAGE             — 예: ghcr.io/<owner>/clickme-backend (미설정 시 ghcr.io/<repo_owner>/clickme-backend)
+#   DEPLOY_PATH              — EC2 compose 경로 (기본 /opt/clickme)
+#
+# Repository Secrets (CD 시):
+#   DEPLOY_HOST              — EC2 호스트
+#   DEPLOY_USER              — SSH 사용자 (기본 ubuntu)
+#   DEPLOY_SSH_KEY           — SSH private key
+
+name: CD Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "docker-compose.yml"
+      - "infra/**"
+      - ".dockerignore"
+      - ".github/workflows/cd-backend.yml"
+
+concurrency:
+  group: cd-backend-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name
+        run: |
+          if [ -n "${{ vars.DOCKER_IMAGE }}" ]; then
+            echo "IMAGE=${{ vars.DOCKER_IMAGE }}" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE=ghcr.io/${{ github.repository_owner }}/clickme-backend" >> "$GITHUB_ENV"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    if: vars.CD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER != '' && secrets.DEPLOY_USER || 'ubuntu' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ vars.DEPLOY_PATH || '/opt/clickme' }}"
+            export TAG="${{ github.sha }}"
+            docker compose pull backend
+            docker compose up -d backend
+            docker image prune -f

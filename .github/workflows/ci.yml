@@ -1,0 +1,160 @@
+# Click Me — 모노레포 CI (llms.txt: path 필터 · PR + main)
+# backend: uv sync → ruff → migrate → seed → pytest → docker build
+# contracts: export → git diff (드리프트 0)
+# frontend: pnpm install → tsc → build (JS lint 없음 — Python만 ruff)
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ci:
+              - '.github/**'
+            backend:
+              - 'backend/**'
+              - 'backend/Dockerfile'
+              - '.dockerignore'
+            frontend:
+              - 'frontend/**'
+            contracts:
+              - 'contracts/**'
+              - 'backend/app/contracts/**'
+              - 'backend/app/**/schemas.py'
+              - 'backend/app/shared/schemas.py'
+              - 'backend/app/domains/auth/schemas.py'
+              - 'backend/scripts/export_contracts.py'
+              - 'backend/scripts/export_types.py'
+              - 'frontend/src/api/types.gen.ts'
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: clickme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d clickme"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/clickme
+      JWT_SECRET: ci-test-jwt-secret
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/clickme-uploads
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Alembic migrate
+        run: uv run alembic upgrade head
+
+      - name: Seed (idempotent)
+        run: uv run python -m scripts.seed
+
+      - name: Pytest
+        run: uv run python -m pytest tests/ -q
+
+      - name: Docker build (from repo root)
+        working-directory: ${{ github.workspace }}
+        run: docker build -f backend/Dockerfile -t clickme-backend:ci .
+
+  contracts:
+    needs: changes
+    if: >-
+      needs.changes.outputs.contracts == 'true' ||
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Export contracts & TS types
+        run: |
+          uv sync --group dev
+          uv run python -m scripts.export_contracts
+          uv run python -m scripts.export_types
+
+      - name: Drift check
+        working-directory: ${{ github.workspace }}
+        run: |
+          git diff --exit-code contracts/ frontend/src/api/types.gen.ts || {
+            echo "::error::Contract drift — run: cd backend && uv run python -m scripts.export_contracts && uv run python -m scripts.export_types"
+            exit 1
+          }
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install, typecheck & build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm build

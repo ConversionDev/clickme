@@ -1,6 +1,5 @@
 """베이스라인 E2E — login → projects → ads → sim → report → chat (Neon+seed 필요)."""
 import asyncio
-import uuid
 
 import pytest
 from httpx import AsyncClient

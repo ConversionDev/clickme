@@ -66,3 +66,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    print("Tip: run `uv run python -m scripts.export_types` for frontend types.gen.ts")

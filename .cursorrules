@@ -1,0 +1,2 @@
+- 터미널 명령어(예: pnpm install 등)를 실행할 때, 실행 속도가 걸려 인라인 UI에 'Waiting for command to finish' 팝업이 뜨더라도 내가 클릭할 때까지 기다리지 마세요.
+- 그 즉시 자동으로 'Run in background'를 선택하여 백그라운드로 넘기고 다음 작업을 끊김 없이 계속 진행하세요.

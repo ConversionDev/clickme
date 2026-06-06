@@ -19,7 +19,6 @@ from app.contracts.simulation_pipeline import (
     PredictionKpi,
     Recommendation,
     SimState,
-    StepTrace,
 )
 
 SEGMENTS = [

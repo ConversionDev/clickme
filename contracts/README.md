@@ -11,9 +11,10 @@ Pydantic SSOT → JSON Schema export:
 ## 생성 파이프라인
 ```bash
 cd backend
-uv run python -m scripts.export_contracts
+uv run python -m scripts.export_contracts   # → contracts/*.schema.json
+uv run python -m scripts.export_types       # → frontend/src/api/types.gen.ts
 ```
-→ `contracts/*.schema.json` 갱신 (FE `types.gen.ts` 생성은 후속)
+또는 프론트에서: `pnpm types:gen`
 
 JWT 클레임: `{sub(user_id), role, org_id, type, iat, exp}`
 

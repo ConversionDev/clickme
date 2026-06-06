@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sse",
+  "definitions": {
+    "SimulationEvent": {
+      "$defs": {
+        "SimulationEventType": {
+          "enum": [
+            "progress",
+            "milestone",
+            "completed",
+            "error"
+          ],
+          "title": "SimulationEventType",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SimulationEventType"
+        },
+        "simulation_id": {
+          "format": "uuid",
+          "title": "Simulation Id",
+          "type": "string"
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "percent": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Percent"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        }
+      },
+      "required": [
+        "type",
+        "simulation_id"
+      ],
+      "title": "SimulationEvent",
+      "type": "object"
+    }
+  }
+}

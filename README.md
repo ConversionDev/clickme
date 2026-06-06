@@ -5,7 +5,7 @@
 
 📖 **전체 설계·결정·근거는 [`llms.txt`](./llms.txt) (단일 SSOT)** 를 보세요. 이 README는 팀 온보딩·작업 시작용 요약입니다.
 
-> 현재 상태: **Track 0 진행 중** — `shared`·auth·DB·Alembic 골격 완료, **실제 Neon에서 로그인 E2E 검증됨**(health·login·me·refresh·에러봉투). 다음: 나머지 도메인/모델(14테이블).
+> 현재 상태: **Track C·A + Storage 포트** — mock 시뮬/채팅(SSE) · CRUD · **POST /api/ads multipart**(local 저장, S3는 env 스왑). 다음: admin · 실 LLM · FE types.gen.ts.
 
 ---
 
@@ -156,7 +156,8 @@ uv sync                                   # 의존성 (팀원은 이거면 끝)
 cp .env.example .env                       # DATABASE_URL(Neon) · JWT_SECRET 등 채우기
 uv run alembic upgrade head                # 마이그레이션 (auth 테이블 생성)
 uv run python -m scripts.seed              # 샘플 seed (admin@clickme.io / ChangeMe123!)
-uv run uvicorn app.main:app --reload       # http://localhost:8000/api/health
+uv run python -m uvicorn app.main:app --reload   # http://localhost:8000/api/health
+# (Windows AppLocker 등으로 `uvicorn` exe가 차단되면 `-m` 필수)
 
 # 프론트 (별도 담당자)
 cd frontend

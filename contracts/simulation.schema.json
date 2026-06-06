@@ -1,0 +1,1189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "simulation",
+  "definitions": {
+    "CreateSimulationRequest": {
+      "$defs": {
+        "CampaignObjective": {
+          "enum": [
+            "awareness",
+            "conversion"
+          ],
+          "title": "CampaignObjective",
+          "type": "string"
+        },
+        "PersonaConfig": {
+          "properties": {
+            "count": {
+              "default": 20,
+              "title": "Count",
+              "type": "integer"
+            },
+            "age_range": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Age Range"
+            },
+            "gender_ratio": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Gender Ratio"
+            },
+            "regions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Regions"
+            },
+            "include_clusters": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Include Clusters"
+            }
+          },
+          "title": "PersonaConfig",
+          "type": "object"
+        },
+        "SimulationType": {
+          "enum": [
+            "ad_reaction",
+            "survey"
+          ],
+          "title": "SimulationType",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "ad_id": {
+          "format": "uuid",
+          "title": "Ad Id",
+          "type": "string"
+        },
+        "simulation_type": {
+          "$ref": "#/$defs/SimulationType",
+          "default": "ad_reaction"
+        },
+        "objective": {
+          "$ref": "#/$defs/CampaignObjective",
+          "default": "conversion"
+        },
+        "persona_count": {
+          "default": 20,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Persona Count",
+          "type": "integer"
+        },
+        "persona_config": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PersonaConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "ad_id"
+      ],
+      "title": "CreateSimulationRequest",
+      "type": "object"
+    },
+    "SimulationCreatedOut": {
+      "$defs": {
+        "SimulationStatus": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "failed"
+          ],
+          "title": "SimulationStatus",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SimulationStatus"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ],
+      "title": "SimulationCreatedOut",
+      "type": "object"
+    },
+    "SimulationSummaryOut": {
+      "$defs": {
+        "CampaignObjective": {
+          "enum": [
+            "awareness",
+            "conversion"
+          ],
+          "title": "CampaignObjective",
+          "type": "string"
+        },
+        "SimulationStatus": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "failed"
+          ],
+          "title": "SimulationStatus",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "format": "uuid",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "ad_id": {
+          "format": "uuid",
+          "title": "Ad Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SimulationStatus"
+        },
+        "persona_count": {
+          "title": "Persona Count",
+          "type": "integer"
+        },
+        "objective": {
+          "$ref": "#/$defs/CampaignObjective"
+        },
+        "results_summary": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Results Summary"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "ad_id",
+        "status",
+        "persona_count",
+        "objective",
+        "created_at"
+      ],
+      "title": "SimulationSummaryOut",
+      "type": "object"
+    },
+    "SimulationDetailOut": {
+      "$defs": {
+        "CampaignObjective": {
+          "enum": [
+            "awareness",
+            "conversion"
+          ],
+          "title": "CampaignObjective",
+          "type": "string"
+        },
+        "Prediction": {
+          "properties": {
+            "overall_score": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Overall Score",
+              "type": "integer"
+            },
+            "verdict": {
+              "title": "Verdict",
+              "type": "string"
+            },
+            "kpi": {
+              "$ref": "#/$defs/PredictionKpi"
+            },
+            "confidence": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Confidence",
+              "type": "number"
+            }
+          },
+          "required": [
+            "overall_score",
+            "verdict",
+            "kpi",
+            "confidence"
+          ],
+          "title": "Prediction",
+          "type": "object"
+        },
+        "PredictionKpi": {
+          "properties": {
+            "attention_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Attention Score",
+              "type": "number"
+            },
+            "sentiment_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Sentiment Score",
+              "type": "number"
+            },
+            "click_intent_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Click Intent Rate",
+              "type": "number"
+            },
+            "conversion_intent_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Conversion Intent Rate",
+              "type": "number"
+            },
+            "comprehension_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Comprehension Score",
+              "type": "number"
+            },
+            "recall_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Recall Score",
+              "type": "number"
+            }
+          },
+          "required": [
+            "attention_score",
+            "sentiment_score",
+            "click_intent_rate",
+            "conversion_intent_rate",
+            "comprehension_score",
+            "recall_score"
+          ],
+          "title": "PredictionKpi",
+          "type": "object"
+        },
+        "Recommendation": {
+          "properties": {
+            "top_drivers": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Top Drivers",
+              "type": "array"
+            },
+            "top_objections": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Top Objections",
+              "type": "array"
+            },
+            "copy_suggestions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Copy Suggestions",
+              "type": "array"
+            },
+            "cta_suggestions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Cta Suggestions",
+              "type": "array"
+            },
+            "next_ab_test": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Next Ab Test"
+            }
+          },
+          "title": "Recommendation",
+          "type": "object"
+        },
+        "SimulationStatus": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "failed"
+          ],
+          "title": "SimulationStatus",
+          "type": "string"
+        },
+        "SimulationType": {
+          "enum": [
+            "ad_reaction",
+            "survey"
+          ],
+          "title": "SimulationType",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "format": "uuid",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "ad_id": {
+          "format": "uuid",
+          "title": "Ad Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SimulationStatus"
+        },
+        "persona_count": {
+          "title": "Persona Count",
+          "type": "integer"
+        },
+        "objective": {
+          "$ref": "#/$defs/CampaignObjective"
+        },
+        "results_summary": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Results Summary"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "simulation_type": {
+          "$ref": "#/$defs/SimulationType"
+        },
+        "persona_config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Persona Config"
+        },
+        "requested_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Count"
+        },
+        "received_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Received Count"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
+        },
+        "prediction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prediction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recommendation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Recommendation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "report_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Id"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "ad_id",
+        "status",
+        "persona_count",
+        "objective",
+        "created_at",
+        "simulation_type"
+      ],
+      "title": "SimulationDetailOut",
+      "type": "object"
+    },
+    "SimState": {
+      "$defs": {
+        "AdAnalysis": {
+          "properties": {
+            "brand_safety": {
+              "default": "safe",
+              "title": "Brand Safety",
+              "type": "string"
+            },
+            "emotional_tone": {
+              "default": "neutral",
+              "title": "Emotional Tone",
+              "type": "string"
+            },
+            "key_themes": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Key Themes",
+              "type": "array"
+            },
+            "target_age_group": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Target Age Group"
+            },
+            "estimated_ctr": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Estimated Ctr"
+            },
+            "visual_elements": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Visual Elements",
+              "type": "array"
+            }
+          },
+          "title": "AdAnalysis",
+          "type": "object"
+        },
+        "AdInput": {
+          "properties": {
+            "ad_id": {
+              "format": "uuid",
+              "title": "Ad Id",
+              "type": "string"
+            },
+            "input_type": {
+              "$ref": "#/$defs/AdInputType"
+            },
+            "text_content": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Text Content"
+            },
+            "image_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Image Url"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ad_id",
+            "input_type",
+            "name"
+          ],
+          "title": "AdInput",
+          "type": "object"
+        },
+        "AdInputType": {
+          "enum": [
+            "image",
+            "text",
+            "video",
+            "url"
+          ],
+          "title": "AdInputType",
+          "type": "string"
+        },
+        "AggregatedStats": {
+          "properties": {
+            "sample_size": {
+              "title": "Sample Size",
+              "type": "integer"
+            },
+            "outlier_count": {
+              "title": "Outlier Count",
+              "type": "integer"
+            },
+            "mean_attention": {
+              "title": "Mean Attention",
+              "type": "number"
+            },
+            "mean_sentiment": {
+              "title": "Mean Sentiment",
+              "type": "number"
+            },
+            "click_intent_rate": {
+              "title": "Click Intent Rate",
+              "type": "number"
+            },
+            "conversion_intent_rate": {
+              "title": "Conversion Intent Rate",
+              "type": "number"
+            },
+            "mean_comprehension": {
+              "title": "Mean Comprehension",
+              "type": "number"
+            },
+            "mean_recall": {
+              "title": "Mean Recall",
+              "type": "number"
+            },
+            "ks_similarity": {
+              "description": "집단 분포 유사도(베이스라인 mock)",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Ks Similarity",
+              "type": "number"
+            }
+          },
+          "required": [
+            "sample_size",
+            "outlier_count",
+            "mean_attention",
+            "mean_sentiment",
+            "click_intent_rate",
+            "conversion_intent_rate",
+            "mean_comprehension",
+            "mean_recall",
+            "ks_similarity"
+          ],
+          "title": "AggregatedStats",
+          "type": "object"
+        },
+        "CampaignObjective": {
+          "enum": [
+            "awareness",
+            "conversion"
+          ],
+          "title": "CampaignObjective",
+          "type": "string"
+        },
+        "Persona": {
+          "properties": {
+            "persona_id": {
+              "title": "Persona Id",
+              "type": "string"
+            },
+            "segment": {
+              "title": "Segment",
+              "type": "string"
+            },
+            "cluster_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cluster Id"
+            },
+            "attributes": {
+              "additionalProperties": true,
+              "title": "Attributes",
+              "type": "object"
+            }
+          },
+          "required": [
+            "persona_id",
+            "segment"
+          ],
+          "title": "Persona",
+          "type": "object"
+        },
+        "PersonaReaction": {
+          "properties": {
+            "persona_id": {
+              "title": "Persona Id",
+              "type": "string"
+            },
+            "segment": {
+              "title": "Segment",
+              "type": "string"
+            },
+            "persona_attributes": {
+              "additionalProperties": true,
+              "title": "Persona Attributes",
+              "type": "object"
+            },
+            "signals": {
+              "$ref": "#/$defs/PersonaSignals"
+            },
+            "reasoning": {
+              "title": "Reasoning",
+              "type": "string"
+            },
+            "confidence": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Confidence",
+              "type": "number"
+            },
+            "is_outlier": {
+              "default": false,
+              "title": "Is Outlier",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "persona_id",
+            "segment",
+            "persona_attributes",
+            "signals",
+            "reasoning",
+            "confidence"
+          ],
+          "title": "PersonaReaction",
+          "type": "object"
+        },
+        "PersonaSignals": {
+          "properties": {
+            "attention": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Attention",
+              "type": "number"
+            },
+            "sentiment": {
+              "maximum": 1,
+              "minimum": -1,
+              "title": "Sentiment",
+              "type": "number"
+            },
+            "click_intent": {
+              "title": "Click Intent",
+              "type": "boolean"
+            },
+            "conversion_intent": {
+              "title": "Conversion Intent",
+              "type": "boolean"
+            },
+            "comprehension": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Comprehension",
+              "type": "number"
+            },
+            "recall": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Recall",
+              "type": "number"
+            }
+          },
+          "required": [
+            "attention",
+            "sentiment",
+            "click_intent",
+            "conversion_intent",
+            "comprehension",
+            "recall"
+          ],
+          "title": "PersonaSignals",
+          "type": "object"
+        },
+        "Prediction": {
+          "properties": {
+            "overall_score": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Overall Score",
+              "type": "integer"
+            },
+            "verdict": {
+              "title": "Verdict",
+              "type": "string"
+            },
+            "kpi": {
+              "$ref": "#/$defs/PredictionKpi"
+            },
+            "confidence": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Confidence",
+              "type": "number"
+            }
+          },
+          "required": [
+            "overall_score",
+            "verdict",
+            "kpi",
+            "confidence"
+          ],
+          "title": "Prediction",
+          "type": "object"
+        },
+        "PredictionKpi": {
+          "properties": {
+            "attention_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Attention Score",
+              "type": "number"
+            },
+            "sentiment_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Sentiment Score",
+              "type": "number"
+            },
+            "click_intent_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Click Intent Rate",
+              "type": "number"
+            },
+            "conversion_intent_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Conversion Intent Rate",
+              "type": "number"
+            },
+            "comprehension_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Comprehension Score",
+              "type": "number"
+            },
+            "recall_score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Recall Score",
+              "type": "number"
+            }
+          },
+          "required": [
+            "attention_score",
+            "sentiment_score",
+            "click_intent_rate",
+            "conversion_intent_rate",
+            "comprehension_score",
+            "recall_score"
+          ],
+          "title": "PredictionKpi",
+          "type": "object"
+        },
+        "Recommendation": {
+          "properties": {
+            "top_drivers": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Top Drivers",
+              "type": "array"
+            },
+            "top_objections": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Top Objections",
+              "type": "array"
+            },
+            "copy_suggestions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Copy Suggestions",
+              "type": "array"
+            },
+            "cta_suggestions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Cta Suggestions",
+              "type": "array"
+            },
+            "next_ab_test": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Next Ab Test"
+            }
+          },
+          "title": "Recommendation",
+          "type": "object"
+        },
+        "StepTrace": {
+          "properties": {
+            "run_id": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            },
+            "node": {
+              "title": "Node",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "ok",
+                "error"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "prompt_version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Prompt Version"
+            },
+            "input_ref": {
+              "default": "",
+              "title": "Input Ref",
+              "type": "string"
+            },
+            "output_ref": {
+              "default": "",
+              "title": "Output Ref",
+              "type": "string"
+            },
+            "latency_ms": {
+              "default": 0,
+              "title": "Latency Ms",
+              "type": "integer"
+            },
+            "token_in": {
+              "default": 0,
+              "title": "Token In",
+              "type": "integer"
+            },
+            "token_out": {
+              "default": 0,
+              "title": "Token Out",
+              "type": "integer"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Error"
+            }
+          },
+          "required": [
+            "run_id",
+            "node",
+            "status"
+          ],
+          "title": "StepTrace",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "objective": {
+          "$ref": "#/$defs/CampaignObjective",
+          "default": "conversion"
+        },
+        "ad": {
+          "$ref": "#/$defs/AdInput"
+        },
+        "analysis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdAnalysis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "personas": {
+          "items": {
+            "$ref": "#/$defs/Persona"
+          },
+          "title": "Personas",
+          "type": "array"
+        },
+        "reactions": {
+          "items": {
+            "$ref": "#/$defs/PersonaReaction"
+          },
+          "title": "Reactions",
+          "type": "array"
+        },
+        "stats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AggregatedStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "prediction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prediction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recommendation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Recommendation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "traces": {
+          "items": {
+            "$ref": "#/$defs/StepTrace"
+          },
+          "title": "Traces",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "ad"
+      ],
+      "title": "SimState",
+      "type": "object"
+    }
+  }
+}

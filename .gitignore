@@ -7,6 +7,8 @@
 # python
 **/.venv/
 **/__pycache__/
+backend/uploads/*
+!backend/uploads/.gitkeep
 *.pyc
 # uv.lock은 커밋 (재현 가능한 `uv sync`)
 

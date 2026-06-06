@@ -129,14 +129,17 @@ app/
       chat/          #   ③ agent.py · rag.py(pgvector) · tools/(직접구현)
       cost/          #   ④ ⏸P2
     prompts/
-  infra/  s3.py · sqs.py
+  infra/  storage.py(local_storage · s3_storage) · sqs.py(P2)
   alembic/
 ```
 
 > **구현 노트(Track 0)**: ORM 모델은 `app/models/` **중앙화**(Alembic이 한 곳에서 일괄 import → autogenerate 용이).
 > `domains/`는 router·service·repository·schemas. (문서의 "models per domain"에서 이 부분만 조정.)
 > 비번 해시 = **bcrypt 직접 사용**(passlib는 bcrypt 4.x 비호환 → 제거). Neon = URL `postgresql+asyncpg://`+쿼리 제거,
-> pooler는 `statement_cache_size=0`·`ssl=require`(connect_args). ⚠️ 기존 Neon에 17테이블+seed 이미 존재 → Alembic `stamp 0001`로 기준선.
+> pooler는 `statement_cache_size=0`·`ssl=require`(connect_args). 17테이블 클린 마이그레이션 `0001` + seed(05 이식) 기준선 확정.
+>
+> **구현 노트(스냅샷 2026-06)**: Track 0✅ · B/C/A **골격(mock LLM)** ✅ · Storage **local** ✅ · admin/billing⏳ · 실 LLM bake-off⏳ · FE `types.gen.ts`⏳.
+> 상세 진행·curl은 README, 코드가 진실. 이 문서는 **결정·계약**만 유지.
 
 ### 의존성 규칙 (단방향 — 명확함의 핵심)
 
@@ -242,11 +245,11 @@ analyze_ad     input_type 분기
    → 출력은 동일 AdAnalysis 스키마 (표준화, FR-03-2)
 run_reactions  페르소나별 × 광고 모달리티 분기
    ├ text 광고  → 텍스트 LLM 반응 (분석 + 페르소나 컨텍스트)
-   └ image 광고 → VLM이 원본 이미지(S3 url) 직접 인식 + 페르소나 컨텍스트 → 주관 반응
+   └ image 광고 → VLM이 원본 이미지(storage 공개 URL) 직접 인식 + 페르소나 컨텍스트 → 주관 반응
 ```
 - 광고 분석은 별도 화면이 아니라 **시뮬레이터의 첫 단계** (= 광고분석 에이전트① 호출, 채팅·비용도 재사용).
 - **베이스라인 입력 = 이미지(핵심·팀 공동) + 텍스트**. 영상·URL은 **후순위(P2)** — `ad_input_type` enum엔 두되 베이스라인 미구현.
-- 이미지 VLM 경로가 베이스라인 핵심. ⚠️ seed 광고가 전부 텍스트 → **이미지 샘플 fixture 필요**(image 경로 개발·데모용).
+- 이미지 VLM 경로가 베이스라인 핵심. **로컬 개발**: `POST /api/ads` multipart로 `uploads/` 저장 + `/uploads` URL (AWS 불필요). seed는 텍스트 위주·이미지는 업로드로 보완.
 - ⚠️ **비용**: 이미지 20명 × VLM. 다운스케일 + 싼 VLM(gpt-4o-mini / Gemini Flash)으로 완화.
 
 ---
@@ -452,7 +455,8 @@ GET  /simulations/{id}/events   → StreamingResponse(text/event-stream), 이벤
 - `nginx`: `nginx:alpine` + `infra/nginx/nginx.conf` · `:80/:443` · `/api`·SSE → backend 프록시 (FE 안 서빙).
 - `backend`: `backend/Dockerfile`(uv → uvicorn **`--workers 1`**) · `:8000` 내부(nginx만 접근).
 - **NeonDB·S3 = 외부 managed**(compose 밖). 로컬 PG는 `--profile local-db` 옵션.
-- **로컬 개발**: 보통 nginx 없이 `uv run uvicorn`(:8000) + FE `next dev`(:3000, rewrites `/api`→8000). compose는 prod 통합 확인용.
+- **로컬 개발**: 보통 nginx 없이 `uv run python -m uvicorn`(:8000) + FE `next dev`(:3000, rewrites `/api`→8000). compose는 prod 통합 확인용.
+- **로컬 파일 저장**: `STORAGE_BACKEND=local`(기본) — S3 없이 광고 이미지 업로드·URL 제공. 프로덕션만 `s3`+IAM.
 - `env_file required: false` → `.env` 없어도 부팅.
 
 ### backend 의존성 (`backend/pyproject.toml`, uv)
@@ -464,7 +468,7 @@ asyncpg · alembic · python-jose[cryptography] · passlib[bcrypt] · python-mul
 | 선구성 (세팅 담당 1회) | 팀원 (매번) |
 |---|---|
 | 레포 골격 · `docker-compose` · `Dockerfile`(FE/BE) · `nginx.conf` | **`uv sync`** (백엔드 의존성) |
-| `.env` 시크릿(DB·JWT·LLM키·S3) **안전 공유** | (FE 담당) `pnpm install` |
+| `.env` 시크릿(DB·JWT·LLM키) **안전 공유** · Storage 기본 `local` | (FE 담당) `pnpm install` |
 | Neon 연결 · pgvector 확장 · Alembic 초기 마이그레이션 | `docker compose up` (통합 확인 시만) |
 | `contracts/` 타입 생성 파이프라인 · `.env.example` 3종 | — |
 
@@ -604,7 +608,7 @@ README(대안 설계)에서 우리 문서보다 나은 부분만 선별 흡수. 
 | 인바운드 어댑터 | `domains/*/router.py` (HTTP/SSE) | driving (외부→코어) |
 | 애플리케이션 | `domains/*/service.py` | 유스케이스 조율 |
 | 도메인 코어(순수) | `ai/agents/*` · 도메인 규칙 | DB·LLM 모름 |
-| 아웃바운드 어댑터 | `repository.py`(DB) · `ai/kernel/llm`(LLM) · `infra/s3` | driven (코어→외부) |
+| 아웃바운드 어댑터 | `repository.py`(DB) · `ai/kernel/llm`(LLM) · `infra/storage`(파일) | driven (코어→외부) |
 | 플랫폼 글루 | `shared/`(config·security·db·events) | 프레임워크 |
 
 > 💡 **`shared/`** = 인프라 플랫폼(설정·DB·보안)이지 헥사고날 '도메인 코어'가 아님 — 이름이 헷갈리지 않게
@@ -647,15 +651,17 @@ orchestration = plain async. ※ Multi-LLM 라우팅의 "모델 선정 게이트
 | auth | POST `login` · `refresh` · `logout` · `change-password` |
 | users/org | GET `users/me` · GET `organizations/{id}` · `users/me/settings`(GET/PATCH theme) |
 | projects | GET/POST `projects` · GET/PATCH/DELETE `projects/{id}` |
-| ads | GET `projects/{id}/ads` · POST `ads`(image/text + S3) · GET `ads/{id}` |
+| ads | GET `projects/{id}/ads` · **POST `ads` multipart**(text/image) · POST `ads/text`(JSON 호환) · GET `ads/{id}` |
 | simulations | POST `projects/{id}/simulations`→{id} · GET `simulations/{id}` · **GET `simulations/{id}/events`(SSE)** · GET `projects/{id}/simulations` |
 | reports | GET `simulations/{id}/report` · GET `reports`(history) · GET `dashboard` |
 | chat | GET/POST `chat/sessions` · GET `chat/sessions/{id}/messages` · **POST messages → SSE 스트림** |
 | admin | GET `admin/users` · POST/PATCH · GET `admin/chats` · GET `admin/usage` |
 | billing | GET `billing`(플랜 UI만) |
 
-> **광고 이미지 업로드 ✅**: 베이스라인 = `POST /api/ads` **multipart → FastAPI 검증(타입·10MB) → boto3 `put_object`(EC2 IAM 롤) → S3**.
-> presigned URL은 **P2**(영상 100MB·동시 업로드 스케일 시). 단순·검증·권한 이점으로 베이스라인은 백엔드 경유.
+> **광고 파일 업로드 ✅확정 (Storage 포트)**: API는 **항상 동일** — `POST /api/ads` multipart → FastAPI 검증(JPEG/PNG/WebP·10MB) → `StorageBackend.upload()` → DB에 `storage_path`+`storage_url`.
+> - **개발(`STORAGE_BACKEND=local`)**: `backend/uploads/` + FastAPI `/uploads` StaticFiles. **AWS 계정 없이** 이미지·VLM URL 플로우 검증.
+> - **프로덕션(`STORAGE_BACKEND=s3`)**: `S3StorageBackend`(boto3 `put_object`, EC2 **IAM 롤** — AWS 키 불필요). router/service/FE 계약 **변경 없음**, env만 스왑.
+> - 호환: `POST /api/ads/text` JSON(텍스트·스크립트용). presigned URL은 **P2**(영상 100MB·동시 업로드 스케일 시).
 
 ### 작업 순서 ✅ (팀 합의: Track 0 → **B(다같이)** → C → A)
 
@@ -674,7 +680,7 @@ orchestration = plain async. ※ Multi-LLM 라우팅의 "모델 선정 게이트
 - run_reactions(fan-out) · validate(IQR)
 - aggregate · predict(5지표) · recommend · report
 - `simulations` 오케스트레이션 + SSE progress + tracing(agent_logs)
-**mock LLM 우선**(실모델은 bake-off 후). 광고는 **seed + 이미지 fixture로 개발**(Track A 불필요).
+**mock LLM 우선**(실모델은 bake-off 후). 광고는 seed + **local multipart 업로드**로 개발 가능.
 *DoD*: POST simulation → SSE 진행률 → 20명 결과 + 5지표 + report.
 
 **Track C — 채팅 에이전트 (B 다음)**
@@ -682,7 +688,7 @@ orchestration = plain async. ※ Multi-LLM 라우팅의 "모델 선정 게이트
 *DoD*: 세션 → 메시지 → SSE 스트리밍 + 시뮬 결과 참조.
 
 **Track A — 웹 도메인 CRUD (마지막)**
-projects · ads(S3 업로드) · users/org · reports(조회) · dashboard · settings · billing(UI) · admin.
+projects · ads(Storage 포트 업로드) · users/org · reports(조회) · dashboard · settings · billing(UI) · admin.
 패턴 `router→service→repository`. ⚠️ **E2E 베이스라인 흐름(업로드·프로젝트·리포트 조회)에 필요 → 늦춰도 6/12 안엔 완료**.
 *DoD*: 엔드포인트 + 권한 + 테스트.
 

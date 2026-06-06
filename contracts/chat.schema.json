@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "chat",
+  "definitions": {
+    "CreateChatSessionRequest": {
+      "properties": {
+        "project_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "title": {
+          "default": "새 채팅",
+          "maxLength": 200,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "title": "CreateChatSessionRequest",
+      "type": "object"
+    },
+    "ChatSessionOut": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "user_id": {
+          "format": "uuid",
+          "title": "User Id",
+          "type": "string"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Project Id"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "project_id",
+        "title",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ChatSessionOut",
+      "type": "object"
+    },
+    "ChatMessageOut": {
+      "$defs": {
+        "ChatRole": {
+          "enum": [
+            "user",
+            "assistant"
+          ],
+          "title": "ChatRole",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ChatRole"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Meta"
+        },
+        "tokens_used": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Used"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "session_id",
+        "role",
+        "content",
+        "created_at"
+      ],
+      "title": "ChatMessageOut",
+      "type": "object"
+    },
+    "SendChatMessageRequest": {
+      "properties": {
+        "content": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Meta"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "SendChatMessageRequest",
+      "type": "object"
+    }
+  }
+}

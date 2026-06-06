@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "auth",
+  "definitions": {
+    "LoginRequest": {
+      "properties": {
+        "email": {
+          "format": "email",
+          "title": "Email",
+          "type": "string"
+        },
+        "password": {
+          "title": "Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
+    "TokenResponse": {
+      "$defs": {
+        "UserOut": {
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "email": {
+              "format": "email",
+              "title": "Email",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "role": {
+              "$ref": "#/$defs/UserRole"
+            },
+            "organization_id": {
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "email",
+            "name",
+            "role",
+            "organization_id"
+          ],
+          "title": "UserOut",
+          "type": "object"
+        },
+        "UserRole": {
+          "enum": [
+            "admin",
+            "user"
+          ],
+          "title": "UserRole",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "access_token": {
+          "title": "Access Token",
+          "type": "string"
+        },
+        "refresh_token": {
+          "title": "Refresh Token",
+          "type": "string"
+        },
+        "token_type": {
+          "default": "bearer",
+          "title": "Token Type",
+          "type": "string"
+        },
+        "user": {
+          "$ref": "#/$defs/UserOut"
+        }
+      },
+      "required": [
+        "access_token",
+        "refresh_token",
+        "user"
+      ],
+      "title": "TokenResponse",
+      "type": "object"
+    },
+    "UserOut": {
+      "$defs": {
+        "UserRole": {
+          "enum": [
+            "admin",
+            "user"
+          ],
+          "title": "UserRole",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "email": {
+          "format": "email",
+          "title": "Email",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/UserRole"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "role",
+        "organization_id"
+      ],
+      "title": "UserOut",
+      "type": "object"
+    }
+  }
+}

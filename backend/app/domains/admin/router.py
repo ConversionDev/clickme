@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.admin.schemas import (
+from app.domains.admin.dto import (
     AdminChatSessionOut,
     AdminUsageOut,
     AdminUserOut,
@@ -13,9 +13,9 @@ from app.domains.admin.schemas import (
     PatchAdminUserRequest,
 )
 from app.domains.admin.service import AdminService
-from app.shared.db import get_db
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, require_role
-from app.shared.schemas import ApiResponse, ok
+from app.shared.envelope import ApiResponse, ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

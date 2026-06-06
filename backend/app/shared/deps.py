@@ -7,7 +7,7 @@ from jose import JWTError
 from pydantic import BaseModel
 
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 from app.shared.security import decode_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)

@@ -6,8 +6,8 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDMixin
-from app.models.enums import ChatRole
+from app.db.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDMixin
+from app.db.enums import ChatRole
 
 
 class ChatSession(Base, UUIDMixin, TimestampMixin):

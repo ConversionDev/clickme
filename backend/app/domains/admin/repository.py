@@ -4,11 +4,11 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chat import ChatMessage, ChatSession
-from app.models.organization import Organization
-from app.models.simulation import Simulation
-from app.models.user import User
-from app.models.enums import SimulationStatus
+from app.db.models.chat import ChatMessage, ChatSession
+from app.db.models.organization import Organization
+from app.db.models.simulation import Simulation
+from app.db.models.user import User
+from app.db.enums import SimulationStatus
 
 
 class AdminRepository:

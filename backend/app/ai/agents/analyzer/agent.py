@@ -1,6 +1,6 @@
 """광고분석 에이전트 — 객관 속성 추출 (mock LLM)."""
 from app.ai.kernel.agent import Agent, AgentResult
-from app.ai.kernel.llm.router import MockLLMRouter
+from app.ai.kernel.llm.modality_router import MockLLMRouter
 from app.contracts.simulation_pipeline import AdAnalysis, AdInput
 
 

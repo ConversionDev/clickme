@@ -5,7 +5,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedAtMixin, UUIDMixin
+from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
 
 
 class AuditLog(Base, UUIDMixin, CreatedAtMixin):

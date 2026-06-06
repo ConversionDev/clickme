@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chat import ChatMessage, ChatSession
+from app.db.models.chat import ChatMessage, ChatSession
 
 
 class ChatRepository:

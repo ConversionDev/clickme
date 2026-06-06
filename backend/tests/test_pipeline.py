@@ -7,7 +7,7 @@ from app.ai.agents.analyzer.agent import AnalyzerAgent
 from app.ai.agents.simulator.pipeline import run_pipeline
 from app.ai.kernel.registry import registry
 from app.contracts.simulation_pipeline import AdInput, PersonaConfig, SimState
-from app.models.enums import AdInputType, CampaignObjective
+from app.db.enums import AdInputType, CampaignObjective
 
 
 @pytest.fixture(autouse=True)

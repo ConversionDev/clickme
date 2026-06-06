@@ -14,9 +14,9 @@ from app.contracts.chat_api import (
     SendChatMessageRequest,
 )
 from app.domains.chat.service import ChatService
-from app.shared.db import get_db
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
-from app.shared.schemas import ApiResponse, ok
+from app.shared.envelope import ApiResponse, ok
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

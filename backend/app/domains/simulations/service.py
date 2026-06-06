@@ -17,13 +17,13 @@ from app.contracts.simulation_api import (
 from app.contracts.simulation_pipeline import AdAnalysis, AdInput, PersonaConfig
 from app.contracts.sse import SimulationEvent, SimulationEventType
 from app.domains.simulations.repository import SimulationRepository
-from app.models.enums import SimulationStatus
-from app.models.report import Report
-from app.models.simulation import PersonaResponse, Simulation
-from app.shared.db import SessionLocal
+from app.db.enums import SimulationStatus
+from app.db.models.report import Report
+from app.db.models.simulation import PersonaResponse, Simulation
+from app.db.session import SessionLocal
 from app.shared.events import bus
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 def _ensure_registry() -> None:

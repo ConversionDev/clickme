@@ -5,11 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.reports.schemas import DashboardOut, ReportOut
+from app.domains.reports.dto import DashboardOut, ReportOut
 from app.domains.reports.service import ReportService
-from app.shared.db import get_db
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
-from app.shared.schemas import ApiResponse, ok
+from app.shared.envelope import ApiResponse, ok
 
 router = APIRouter(prefix="/api", tags=["reports"])
 

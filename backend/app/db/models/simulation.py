@@ -8,8 +8,8 @@ from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedAtMixin, UUIDMixin
-from app.models.enums import CampaignObjective, SimulationStatus, SimulationType
+from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
+from app.db.enums import CampaignObjective, SimulationStatus, SimulationType
 
 
 class Simulation(Base, UUIDMixin, CreatedAtMixin):

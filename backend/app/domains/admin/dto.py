@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models.enums import UserRole
+from app.db.enums import UserRole
 
 
 class AdminUserOut(BaseModel):

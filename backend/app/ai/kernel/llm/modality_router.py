@@ -2,7 +2,7 @@
 import asyncio
 import random
 
-from app.models.enums import AdInputType
+from app.db.enums import AdInputType
 
 
 class MockLLMRouter:

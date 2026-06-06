@@ -4,7 +4,7 @@ import statistics
 from collections.abc import Awaitable, Callable
 from uuid import UUID
 
-from app.ai.kernel.llm.router import MockLLMRouter
+from app.ai.kernel.llm.modality_router import MockLLMRouter
 from app.ai.kernel.registry import registry
 from app.ai.kernel.tracing import trace_step
 from app.contracts.simulation_pipeline import (

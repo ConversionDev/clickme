@@ -4,8 +4,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import Project, ProjectMember
-from app.models.enums import ProjectMemberRole
+from app.db.models.project import Project, ProjectMember
+from app.db.enums import ProjectMemberRole
 
 
 class ProjectRepository:

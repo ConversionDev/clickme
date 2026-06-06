@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import AdInputType, AdStatus
+from app.db.enums import AdInputType, AdStatus
 
 
 class CreateTextAdRequest(BaseModel):

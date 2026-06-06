@@ -8,8 +8,8 @@ from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedAtMixin, UUIDMixin
-from app.models.enums import AdStatus
+from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
+from app.db.enums import AdStatus
 
 
 class GeneratedAd(Base, UUIDMixin, CreatedAtMixin):

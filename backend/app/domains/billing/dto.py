@@ -1,7 +1,7 @@
 """billing UI용 스키마 (결제 연동 없음)."""
 from pydantic import BaseModel
 
-from app.models.enums import PlanType
+from app.db.enums import PlanType
 
 
 class BillingPlanOut(BaseModel):

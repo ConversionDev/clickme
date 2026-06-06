@@ -5,11 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.projects.schemas import CreateProjectRequest, ProjectOut, UpdateProjectRequest
+from app.domains.projects.dto import CreateProjectRequest, ProjectOut, UpdateProjectRequest
 from app.domains.projects.service import ProjectService
-from app.shared.db import get_db
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
-from app.shared.schemas import ApiResponse, ok
+from app.shared.envelope import ApiResponse, ok
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 

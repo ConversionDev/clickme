@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.ad import Ad
+from app.db.models.ad import Ad
 
 
 class AdRepository:

@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.contracts.simulation_pipeline import PersonaConfig, Prediction, Recommendation
-from app.models.enums import CampaignObjective, SimulationStatus, SimulationType
+from app.db.enums import CampaignObjective, SimulationStatus, SimulationType
 
 
 class CreateSimulationRequest(BaseModel):

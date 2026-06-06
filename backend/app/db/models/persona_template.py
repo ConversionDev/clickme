@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedAtMixin, UUIDMixin
+from app.db.models.base import Base, CreatedAtMixin, UUIDMixin
 
 
 class PersonaTemplate(Base, UUIDMixin, CreatedAtMixin):

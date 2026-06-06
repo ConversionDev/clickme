@@ -6,12 +6,12 @@ from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.auth.repository import AuthRepository
-from app.domains.auth.schemas import TokenResponse, UserOut
-from app.models.user import User
+from app.domains.auth.dto import TokenResponse, UserOut
+from app.db.models.user import User
 from app.shared import security
 from app.shared.config import settings
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 def _hash_token(token: str) -> str:

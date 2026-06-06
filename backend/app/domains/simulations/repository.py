@@ -4,10 +4,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.ad import Ad
-from app.models.project import Project, ProjectMember
-from app.models.report import Report
-from app.models.simulation import PersonaResponse, Simulation
+from app.db.models.ad import Ad
+from app.db.models.project import Project, ProjectMember
+from app.db.models.report import Report
+from app.db.models.simulation import PersonaResponse, Simulation
 
 
 class SimulationRepository:

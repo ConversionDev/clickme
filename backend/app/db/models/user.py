@@ -8,8 +8,8 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
-from app.models.enums import UserRole
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
+from app.db.enums import UserRole
 
 
 class User(Base, UUIDMixin, TimestampMixin):

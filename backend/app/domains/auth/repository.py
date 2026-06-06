@@ -5,8 +5,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.refresh_token import RefreshToken
-from app.models.user import User
+from app.db.models.refresh_token import RefreshToken
+from app.db.models.user import User
 
 
 class AuthRepository:

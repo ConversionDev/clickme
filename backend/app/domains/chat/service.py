@@ -13,11 +13,11 @@ from app.contracts.chat_api import (
     SendChatMessageRequest,
 )
 from app.domains.chat.repository import ChatRepository
-from app.models.chat import ChatMessage, ChatSession
-from app.models.enums import ChatRole
+from app.db.models.chat import ChatMessage, ChatSession
+from app.db.enums import ChatRole
 from app.shared.exceptions import AppException
 from app.shared.project_access import assert_project_member
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 def _ensure_chat_agent() -> ChatAgent:

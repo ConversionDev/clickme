@@ -4,12 +4,12 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.projects.repository import ProjectRepository
-from app.domains.projects.schemas import CreateProjectRequest, ProjectOut, UpdateProjectRequest
-from app.models.project import Project
-from app.models.enums import ProjectStatus
+from app.domains.projects.dto import CreateProjectRequest, ProjectOut, UpdateProjectRequest
+from app.db.models.project import Project
+from app.db.enums import ProjectStatus
 from app.shared.exceptions import AppException
 from app.shared.project_access import assert_project_member, get_project_or_404
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 class ProjectService:
@@ -53,7 +53,7 @@ class ProjectService:
         await self.repo.add(project, uuid.UUID(user_id))
         await self.db.commit()
         await self.db.refresh(project)
-        from app.models.enums import ProjectMemberRole
+        from app.db.enums import ProjectMemberRole
 
         return self._out(project, ProjectMemberRole.owner)
 

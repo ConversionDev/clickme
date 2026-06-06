@@ -3,8 +3,8 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
-from app.models.enums import PlanType
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
+from app.db.enums import PlanType
 
 
 class Organization(Base, UUIDMixin, TimestampMixin):

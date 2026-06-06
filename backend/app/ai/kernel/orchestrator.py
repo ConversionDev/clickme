@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.ai.agents.simulator.pipeline import build_initial_state, run_pipeline
 from app.contracts.simulation_pipeline import AdInput, PersonaConfig, SimState
-from app.models.enums import CampaignObjective
+from app.db.enums import CampaignObjective
 
 
 class SimulationOrchestrator:

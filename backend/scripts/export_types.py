@@ -24,25 +24,25 @@ from app.contracts.simulation_api import (
 )
 from app.contracts.simulation_pipeline import PersonaConfig, Prediction, PredictionKpi, Recommendation
 from app.contracts.sse import SimulationEvent, SimulationEventType
-from app.domains.admin.schemas import (
+from app.domains.admin.dto import (
     AdminChatSessionOut,
     AdminUsageOut,
     AdminUserOut,
     CreateAdminUserRequest,
     PatchAdminUserRequest,
 )
-from app.domains.ads.schemas import AdOut, CreateTextAdRequest
-from app.domains.auth.schemas import LoginRequest, TokenResponse, UserOut
-from app.domains.billing.schemas import BillingPlanOut
-from app.domains.projects.schemas import CreateProjectRequest, ProjectOut, UpdateProjectRequest
-from app.domains.reports.schemas import DashboardOut, ReportOut
-from app.domains.users.schemas import (
+from app.domains.ads.dto import AdOut, CreateTextAdRequest
+from app.domains.auth.dto import LoginRequest, TokenResponse, UserOut
+from app.domains.billing.dto import BillingPlanOut
+from app.domains.projects.dto import CreateProjectRequest, ProjectOut, UpdateProjectRequest
+from app.domains.reports.dto import DashboardOut, ReportOut
+from app.domains.users.dto import (
     OrganizationOut,
     UpdateUserSettingsRequest,
     UserProfileOut,
     UserSettingsOut,
 )
-from app.models.enums import (
+from app.db.enums import (
     AdInputType,
     AdStatus,
     CampaignObjective,
@@ -54,7 +54,7 @@ from app.models.enums import (
     SimulationType,
     UserRole,
 )
-from app.shared.schemas import ApiResponse, ErrorCode, ErrorDetail
+from app.shared.envelope import ApiResponse, ErrorCode, ErrorDetail
 
 OUT = Path(__file__).resolve().parents[2] / "frontend" / "src" / "api" / "types.gen.ts"
 

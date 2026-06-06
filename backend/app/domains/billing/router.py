@@ -5,13 +5,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.billing.schemas import BillingPlanOut
-from app.models.enums import PlanType
-from app.models.organization import Organization
-from app.shared.db import get_db
+from app.domains.billing.dto import BillingPlanOut
+from app.db.enums import PlanType
+from app.db.models.organization import Organization
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.exceptions import AppException
-from app.shared.schemas import ApiResponse, ErrorCode, ok
+from app.shared.envelope import ApiResponse, ErrorCode, ok
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 

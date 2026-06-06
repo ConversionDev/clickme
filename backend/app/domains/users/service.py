@@ -4,17 +4,17 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.users.schemas import (
+from app.domains.users.dto import (
     OrganizationOut,
     UpdateUserSettingsRequest,
     UserProfileOut,
     UserSettingsOut,
 )
-from app.models.organization import Organization
-from app.models.user import User
-from app.models.user_settings import UserSettings
+from app.db.models.organization import Organization
+from app.db.models.user import User
+from app.db.models.user_settings import UserSettings
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 class UserService:

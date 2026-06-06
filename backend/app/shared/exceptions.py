@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.shared.logging import logger
-from app.shared.schemas import ApiResponse, ErrorCode, ErrorDetail
+from app.shared.envelope import ApiResponse, ErrorCode, ErrorDetail
 
 
 class AppException(Exception):

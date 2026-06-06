@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import PlanType, UserRole
+from app.db.enums import PlanType, UserRole
 
 
 class OrganizationOut(BaseModel):

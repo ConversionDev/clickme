@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import ProjectMemberRole, ProjectStatus
+from app.db.enums import ProjectMemberRole, ProjectStatus
 
 
 class CreateProjectRequest(BaseModel):

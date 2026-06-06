@@ -16,10 +16,10 @@ from app.contracts.simulation_api import (
 )
 from app.contracts.sse import SimulationEventType
 from app.domains.simulations.service import SimulationService
-from app.shared.db import get_db
+from app.db.session import get_db
 from app.shared.deps import CurrentUser, get_current_user
 from app.shared.events import bus
-from app.shared.schemas import ApiResponse, ok
+from app.shared.envelope import ApiResponse, ok
 
 router = APIRouter(prefix="/api", tags=["simulations"])
 
@@ -67,7 +67,7 @@ async def get_simulation(
 @router.get("/simulations/{simulation_id}/events")
 async def simulation_events(simulation_id: UUID, user: UserDep, db: DbDep) -> StreamingResponse:
     """SSE — progress · milestone · completed · error."""
-    from app.models.enums import SimulationStatus
+    from app.db.enums import SimulationStatus
 
     detail = await SimulationService(db).get_detail(simulation_id, user.id)
     channel = f"sim:{simulation_id}"

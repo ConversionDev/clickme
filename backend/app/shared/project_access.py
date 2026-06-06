@@ -4,9 +4,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import Project, ProjectMember
+from app.db.models.project import Project, ProjectMember
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 async def get_project_or_404(db: AsyncSession, project_id: uuid.UUID) -> Project:

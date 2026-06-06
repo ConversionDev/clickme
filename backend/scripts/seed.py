@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.models import (
+from app.db.models import (
     Ad,
     ChatMessage,
     ChatSession,
@@ -21,7 +21,7 @@ from app.models import (
     User,
     UserSettings,
 )
-from app.models.enums import (
+from app.db.enums import (
     AdInputType,
     AdStatus,
     CampaignObjective,
@@ -33,7 +33,7 @@ from app.models.enums import (
     SimulationType,
     UserRole,
 )
-from app.shared.db import SessionLocal
+from app.db.session import SessionLocal
 from app.shared.security import hash_password
 
 

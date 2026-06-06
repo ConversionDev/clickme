@@ -4,16 +4,16 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.admin.repository import AdminRepository
-from app.domains.admin.schemas import (
+from app.domains.admin.dto import (
     AdminChatSessionOut,
     AdminUsageOut,
     AdminUserOut,
     CreateAdminUserRequest,
     PatchAdminUserRequest,
 )
-from app.models.user import User
+from app.db.models.user import User
 from app.shared.exceptions import AppException
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 from app.shared.security import hash_password
 
 

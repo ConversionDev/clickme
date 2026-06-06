@@ -20,8 +20,8 @@ from app.contracts.simulation_api import (
 )
 from app.contracts.simulation_pipeline import SimState
 from app.contracts.sse import SimulationEvent
-from app.domains.auth.schemas import LoginRequest, TokenResponse, UserOut
-from app.shared.schemas import ApiResponse, ErrorCode
+from app.domains.auth.dto import LoginRequest, TokenResponse, UserOut
+from app.shared.envelope import ApiResponse, ErrorCode
 
 ROOT = Path(__file__).resolve().parents[2] / "contracts"
 

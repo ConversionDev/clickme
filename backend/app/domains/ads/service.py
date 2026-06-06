@@ -7,14 +7,14 @@ from app.ai.agents.analyzer.agent import AnalyzerAgent
 from app.ai.kernel.registry import registry
 from app.contracts.simulation_pipeline import AdInput
 from app.domains.ads.repository import AdRepository
-from app.domains.ads.schemas import AdOut, CreateTextAdRequest
+from app.domains.ads.dto import AdOut, CreateTextAdRequest
 from app.domains.ads.validation import validate_image
 from app.infra.storage import get_storage
-from app.models.ad import Ad
-from app.models.enums import AdInputType, AdStatus
+from app.db.models.ad import Ad
+from app.db.enums import AdInputType, AdStatus
 from app.shared.exceptions import AppException
 from app.shared.project_access import assert_project_member
-from app.shared.schemas import ErrorCode
+from app.shared.envelope import ErrorCode
 
 
 def _ensure_analyzer() -> None:

@@ -8,8 +8,8 @@ from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
-from app.models.enums import ProjectMemberRole, ProjectStatus
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
+from app.db.enums import ProjectMemberRole, ProjectStatus
 
 
 class Project(Base, UUIDMixin, TimestampMixin):

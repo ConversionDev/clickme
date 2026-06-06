@@ -6,8 +6,8 @@ from sqlalchemy import Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
-from app.models.enums import AdInputType, AdStatus
+from app.db.models.base import Base, TimestampMixin, UUIDMixin
+from app.db.enums import AdInputType, AdStatus
 
 
 class Ad(Base, UUIDMixin, TimestampMixin):
